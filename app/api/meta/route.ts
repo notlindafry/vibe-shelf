@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCollection } from "@/lib/discogs";
 import { aiSearchEnabled } from "@/lib/search";
-import { availableMoods, presentGenres, presentOwners, presentStyles } from "@/lib/vocab";
+import { MOODS, availableMoods, presentGenres, presentOwners, presentStyles } from "@/lib/vocab";
 import { getRole } from "@/lib/request";
 import type { MetaResponse } from "@/lib/types";
 
@@ -21,7 +21,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       genres: presentGenres(records),
       styles: presentStyles(records),
       owners: presentOwners(records),
-      moods: availableMoods(records),
+      // With AI classification, moods can apply beyond a record's literal styles
+      // (e.g. "party" for Andrew W.K.), so offer the full mood vocabulary. Without
+      // an API key, fall back to moods that at least resolve to a present style.
+      moods: aiSearchEnabled() ? MOODS : availableMoods(records),
       total: records.length,
       partial,
       features: {

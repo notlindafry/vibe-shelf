@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCollection } from "@/lib/discogs";
-import { expandMoodsToStyles } from "@/lib/vocab";
+import { getMoodIndex } from "@/lib/moods";
 import { parseStringArray } from "@/lib/request";
 import type { Record as ShelfRecord, SearchResult } from "@/lib/types";
 
@@ -23,21 +23,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const owners = new Set(parseStringArray(body.owners).map((s) => s.toLowerCase()));
   const genres = new Set(parseStringArray(body.genres).map((s) => s.toLowerCase()));
-  const styles = parseStringArray(body.styles);
-  const moods = parseStringArray(body.moods);
+  const styles = new Set(parseStringArray(body.styles).map((s) => s.toLowerCase()));
+  const moods = parseStringArray(body.moods).map((s) => s.toLowerCase());
 
   try {
     const { records } = await getCollection();
-    const targetStyles = new Set(
-      [...styles, ...expandMoodsToStyles(moods, records)].map((s) => s.toLowerCase()),
-    );
-    const hasContent = genres.size > 0 || targetStyles.size > 0;
+    // Moods are a hard AND filter via the per-record mood index; genre/style
+    // remain an inclusive OR — consistent with /api/search.
+    const moodIndex = moods.length > 0 ? await getMoodIndex(records) : null;
+    const hasContent = genres.size > 0 || styles.size > 0;
 
     const pool = records.filter((record) => {
       if (owners.size > 0 && !owners.has(record.owner.toLowerCase())) return false;
+      if (moodIndex && moods.length > 0) {
+        const recMoods = moodIndex.get(record);
+        if (!moods.every((m) => recMoods.has(m))) return false;
+      }
       if (!hasContent) return true;
       const g = record.genres.some((x) => genres.has(x.toLowerCase()));
-      const s = record.styles.some((x) => targetStyles.has(x.toLowerCase()));
+      const s = record.styles.some((x) => styles.has(x.toLowerCase()));
       return g || s;
     });
 

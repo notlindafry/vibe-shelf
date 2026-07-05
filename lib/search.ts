@@ -16,13 +16,8 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { QuerySpec, Record as ShelfRecord, SearchResult } from "@/lib/types";
-import {
-  MOODS,
-  expandMoodsToStyles,
-  presentGenres,
-  presentOwners,
-  presentStyles,
-} from "@/lib/vocab";
+import { MOODS, presentGenres, presentOwners, presentStyles } from "@/lib/vocab";
+import { getMoodIndex, type MoodIndex } from "@/lib/moods";
 
 const MAX_QUERY_LEN = 300;
 const CANDIDATE_LIMIT = 60; // records handed to the rerank step
@@ -173,7 +168,7 @@ interface Scored {
   score: number;
 }
 
-function scoreRecords(spec: QuerySpec, records: ShelfRecord[]): Scored[] {
+function scoreRecords(spec: QuerySpec, records: ShelfRecord[], moodIndex?: MoodIndex | null): Scored[] {
   const genres = new Set(spec.genres.map(norm));
   const owners = new Set(spec.owners.map(norm));
   const artists = spec.artists.map(norm).filter(Boolean);
@@ -181,13 +176,10 @@ function scoreRecords(spec: QuerySpec, records: ShelfRecord[]): Scored[] {
   const excludeStyles = new Set((spec.excludeStyles ?? []).map(norm));
   const explicitStyles = spec.styles.map(norm);
 
-  // Moods combine with AND: each selected mood expands to its OWN set of styles,
-  // and a record must match at least one style from EVERY selected mood. Only
-  // moods that resolve to styles present in the collection are considered.
-  const moodStyleSets = Array.from(new Set(spec.moods.map(norm)))
-    .map((mood) => new Set(expandMoodsToStyles([mood], records).map(norm)))
-    .filter((set) => set.size > 0);
-  const hasMoodFilter = moodStyleSets.length > 0;
+  // Moods combine with AND, using the (Claude-derived, cached) per-record mood
+  // index: a record must be tagged with EVERY selected mood.
+  const selectedMoods = Array.from(new Set(spec.moods.map(norm)));
+  const hasMoodFilter = selectedMoods.length > 0 && !!moodIndex;
 
   // Genre / style / artist / keyword are scored as an OR pool; moods are a
   // separate hard AND filter, applied per-record below.
@@ -205,8 +197,11 @@ function scoreRecords(spec: QuerySpec, records: ShelfRecord[]): Scored[] {
     // Hard filter: excluded styles.
     if (excludeStyles.size > 0 && recStyles.some((s) => excludeStyles.has(s))) continue;
 
-    // Hard filter: moods (AND) — the record must satisfy every selected mood.
-    if (hasMoodFilter && !moodStyleSets.every((set) => recStyles.some((s) => set.has(s)))) continue;
+    // Hard filter: moods (AND) — the record must be tagged with every selected mood.
+    if (hasMoodFilter) {
+      const recMoods = moodIndex!.get(record);
+      if (!selectedMoods.every((m) => recMoods.has(m))) continue;
+    }
 
     if (!hasAnyConstraint) {
       // Pure browse (e.g. owner-only or empty query): keep everything, flat score.
@@ -222,12 +217,9 @@ function scoreRecords(spec: QuerySpec, records: ShelfRecord[]): Scored[] {
     for (const s of recStyles) if (explicitStyles.includes(s)) score += 2;
     for (const a of artists) if (haystack.includes(a)) score += 3;
     for (const k of keywords) if (haystack.includes(k)) score += 1;
-    // The AND gate already passed; reward stronger mood matches for ordering.
-    if (hasMoodFilter) {
-      for (const set of moodStyleSets) {
-        for (const s of recStyles) if (set.has(s)) score += 1.5;
-      }
-    }
+    // The AND gate already passed; give mood-matched records a positive score so
+    // mood-only browses surface (and keep them above pure genre noise).
+    if (hasMoodFilter) score += selectedMoods.length * 1.5;
 
     if (score > 0) scored.push({ record, score });
   }
@@ -384,8 +376,10 @@ export async function searchRecords(
     return { results: [], spec, reranked: false };
   }
 
-  // Prefilter + score.
-  const scored = scoreRecords(spec, records);
+  // Prefilter + score. When moods are in play, classify (or reuse cached) moods
+  // for the collection so the AND filter uses Claude's per-record tags.
+  const moodIndex = spec.moods.length > 0 ? await getMoodIndex(records) : null;
+  const scored = scoreRecords(spec, records, moodIndex);
   const candidates = scored.slice(0, CANDIDATE_LIMIT).map((s) => s.record);
 
   if (candidates.length === 0) {
