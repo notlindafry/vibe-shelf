@@ -1,32 +1,35 @@
 /*
- * vibe-shelf aesthetic:
- *  - charcoal background
- *  - sage (#7E9C84) as the genre / secondary accent
- *  - neon lime (#39FF7A) as the interactive / mood accent
- *  - Space Grotesk (display) + Inter (body)
- *  - left-aligned
+ * vibe-shelf aesthetic (quiet, sage-on-dark):
+ *  - deep dark-green background, dark-green raised surfaces
+ *  - a single sage accent (#7D9B83) for active states, links, focus, top bar
+ *  - off-white body text, white for headings/emphasis
+ *  - NO bright accent: the previous neon lime is removed entirely
+ *  - Space Grotesk (display) + Inter (body), left-aligned
+ *
+ * The palette is five colors. Muted text and borders are DERIVED from those five
+ * via color-mix / opacity rather than introducing new hexes.
  */
 
 :root {
-  --bg: #17181b;
-  --bg-raised: #1f2024;
-  --bg-input: #212226;
-  --surface: #24262b;
-  --surface-hover: #2b2e34;
-  --border: #33353c;
-  --border-strong: #43464f;
+  /* --- the five palette colors --- */
+  --bg: #0f120d; /* page background (deepest) */
+  --surface: #1d231c; /* cards, search bar, inputs, chips */
+  --accent: #7d9b83; /* active facet, focus ring, links, top bar */
+  --text: #e6e4db; /* primary body text */
+  --text-strong: #ffffff; /* headings, app title, emphasis */
 
-  --text: #ecedf0;
-  --text-muted: #a4a7b0;
-  --text-faint: #71747d;
+  /* --- derived from the palette (no new hues) --- */
+  --bg-raised: var(--surface);
+  --surface-hover: color-mix(in srgb, var(--surface) 84%, var(--accent));
+  --text-muted: color-mix(in srgb, var(--text), transparent 40%); /* ~60% */
+  --text-faint: color-mix(in srgb, var(--text), transparent 58%); /* ~42% */
+  --border: color-mix(in srgb, var(--accent), transparent 80%); /* accent @ 20% */
+  --border-strong: color-mix(in srgb, var(--accent), transparent 62%); /* accent @ 38% */
+  --accent-dim: color-mix(in srgb, var(--accent), transparent 84%);
+  --accent-ink: var(--bg); /* dark text on a sage fill */
 
-  --sage: #7e9c84;
-  --sage-dim: rgba(126, 156, 132, 0.16);
-  --lime: #39ff7a;
-  --lime-dim: rgba(57, 255, 122, 0.14);
-  --lime-ink: #08130b;
-
-  --danger: #ff6b6b;
+  /* error text: a muted red for warning semantics only (not a grey/border) */
+  --danger: #cf8f83;
 
   --radius: 12px;
   --radius-sm: 8px;
@@ -54,6 +57,8 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-align: left;
+  /* thin top accent bar */
+  border-top: 3px solid var(--accent);
 }
 
 h1,
@@ -63,10 +68,11 @@ h3 {
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0;
+  color: var(--text-strong);
 }
 
 a {
-  color: var(--lime);
+  color: var(--accent);
   text-decoration: none;
 }
 a:hover {
@@ -81,6 +87,11 @@ button {
 input,
 button {
   font-size: 15px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ---- Layout ---- */
@@ -105,9 +116,10 @@ button {
   font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  color: var(--text-strong);
 }
 .wordmark .dash {
-  color: var(--lime);
+  color: var(--accent);
 }
 
 .tagline {
@@ -124,7 +136,7 @@ button {
   color: var(--text-faint);
 }
 
-/* ---- Buttons ---- */
+/* ---- Buttons (flat, rounded, no shadow) ---- */
 
 .btn {
   border: 1px solid var(--border-strong);
@@ -132,30 +144,39 @@ button {
   color: var(--text);
   padding: 9px 14px;
   border-radius: var(--radius-sm);
-  transition: background 0.12s ease, border-color 0.12s ease;
+  box-shadow: none;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 .btn:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+.btn:active {
   background: var(--surface-hover);
 }
 .btn-primary {
-  background: var(--lime);
-  color: var(--lime-ink);
-  border-color: var(--lime);
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
   font-weight: 600;
 }
 .btn-primary:hover {
-  background: #56ff8e;
+  background: color-mix(in srgb, var(--accent) 86%, white);
+  border-color: color-mix(in srgb, var(--accent) 86%, white);
 }
 .btn-ghost {
   background: transparent;
-  border-color: var(--border);
+  border: 1px solid var(--border);
   color: var(--text-muted);
   padding: 6px 10px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
+  box-shadow: none;
 }
 .btn-ghost:hover {
   color: var(--text);
-  background: var(--surface);
+  border-color: var(--accent);
+  background: transparent;
 }
 .btn:disabled {
   opacity: 0.5;
@@ -165,7 +186,7 @@ button {
 .linkish {
   background: none;
   border: none;
-  color: var(--lime);
+  color: var(--accent);
   padding: 0;
   font-size: 13px;
 }
@@ -182,7 +203,7 @@ button {
 }
 .searchbar input[type="text"] {
   flex: 1;
-  background: var(--bg-input);
+  background: var(--surface);
   border: 1px solid var(--border-strong);
   color: var(--text);
   border-radius: var(--radius-sm);
@@ -190,8 +211,8 @@ button {
   outline: none;
 }
 .searchbar input[type="text"]:focus {
-  border-color: var(--lime);
-  box-shadow: 0 0 0 3px var(--lime-dim);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 .searchbar input::placeholder {
   color: var(--text-faint);
@@ -223,10 +244,11 @@ button {
 }
 .facet-button:hover {
   background: var(--surface-hover);
+  border-color: var(--border-strong);
 }
 .facet-button .count {
-  background: var(--lime);
-  color: var(--lime-ink);
+  background: var(--accent);
+  color: var(--accent-ink);
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
@@ -254,20 +276,20 @@ button {
   background: var(--bg-raised);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 .facet-panel input[type="text"] {
   margin: 8px;
   padding: 8px 10px;
-  background: var(--bg-input);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
   outline: none;
 }
 .facet-panel input[type="text"]:focus {
-  border-color: var(--lime);
+  border-color: var(--accent);
 }
 .facet-options {
   overflow-y: auto;
@@ -286,10 +308,10 @@ button {
   background: var(--surface);
 }
 .facet-option input {
-  accent-color: var(--lime);
+  accent-color: var(--accent);
 }
 .facet-option.selected {
-  color: var(--text);
+  color: var(--text-strong);
 }
 .facet-empty {
   padding: 12px;
@@ -303,7 +325,8 @@ button {
   justify-content: flex-end;
 }
 
-/* selected chips row */
+/* selected chips row — one accent across all facet groups; the section
+   headers ("Genre", "Mood", "Owner") distinguish the groups, not colour. */
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -314,20 +337,12 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--sage-dim);
-  border: 1px solid rgba(126, 156, 132, 0.4);
+  background: var(--accent-dim);
+  border: 1px solid var(--border-strong);
   color: var(--text);
   border-radius: 999px;
   padding: 4px 6px 4px 11px;
   font-size: 12.5px;
-}
-.chip.mood {
-  background: var(--lime-dim);
-  border-color: rgba(57, 255, 122, 0.4);
-}
-.chip.owner {
-  background: rgba(57, 255, 122, 0.1);
-  border-color: rgba(57, 255, 122, 0.35);
 }
 .chip button {
   background: none;
@@ -338,7 +353,7 @@ button {
   font-size: 14px;
 }
 .chip button:hover {
-  color: var(--text);
+  color: var(--text-strong);
 }
 
 /* ---- Status line ---- */
@@ -353,6 +368,10 @@ button {
   margin-bottom: 16px;
   min-height: 20px;
 }
+.statusline strong {
+  color: var(--text-strong);
+  font-weight: 600;
+}
 .badge {
   font-size: 11px;
   text-transform: uppercase;
@@ -363,11 +382,11 @@ button {
   color: var(--text-muted);
 }
 .badge.ai {
-  color: var(--lime);
-  border-color: rgba(57, 255, 122, 0.4);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 .notice {
-  color: #e7c66b;
+  color: var(--text);
 }
 .error {
   color: var(--danger);
@@ -400,8 +419,8 @@ button {
   height: 58px;
   border-radius: 50%;
   background:
-    radial-gradient(circle at center, var(--sage) 0 22%, transparent 23%),
-    repeating-radial-gradient(circle at center, #0e0f11 0 2px, #17181b 2px 4px);
+    radial-gradient(circle at center, var(--accent) 0 22%, transparent 23%),
+    repeating-radial-gradient(circle at center, var(--bg) 0 2px, var(--surface) 2px 4px);
   border: 1px solid var(--border);
   position: relative;
 }
@@ -425,6 +444,7 @@ button {
   font-weight: 600;
   font-size: 15px;
   line-height: 1.25;
+  color: var(--text-strong);
 }
 .card-title {
   color: var(--text-muted);
@@ -452,20 +472,20 @@ button {
   color: var(--text-muted);
 }
 .tag.style {
-  color: var(--sage);
-  border-color: rgba(126, 156, 132, 0.45);
+  color: var(--accent);
+  border-color: var(--border-strong);
 }
 .tag.owner {
-  color: var(--lime);
-  border-color: rgba(57, 255, 122, 0.4);
-  background: var(--lime-dim);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
 }
 
 .reason {
   margin-top: 10px;
   font-size: 12.5px;
   color: var(--text-muted);
-  border-left: 2px solid var(--lime);
+  border-left: 2px solid var(--accent);
   padding-left: 9px;
   line-height: 1.4;
 }
@@ -488,8 +508,8 @@ button {
   font-size: 13px;
 }
 .hint code {
-  color: var(--sage);
-  background: var(--bg-raised);
+  color: var(--accent);
+  background: var(--surface);
   padding: 1px 6px;
   border-radius: 5px;
   font-size: 12px;
@@ -507,7 +527,7 @@ button {
 .login-card {
   width: 100%;
   max-width: 380px;
-  background: var(--bg-raised);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 30px 26px;
@@ -526,7 +546,7 @@ button {
   gap: 12px;
 }
 .login-form input {
-  background: var(--bg-input);
+  background: var(--bg);
   border: 1px solid var(--border-strong);
   color: var(--text);
   border-radius: var(--radius-sm);
@@ -534,8 +554,8 @@ button {
   outline: none;
 }
 .login-form input:focus {
-  border-color: var(--lime);
-  box-shadow: 0 0 0 3px var(--lime-dim);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
 .spin {
@@ -543,7 +563,7 @@ button {
   width: 14px;
   height: 14px;
   border: 2px solid var(--border-strong);
-  border-top-color: var(--lime);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   vertical-align: -2px;

@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Search a shared vinyl collection by artist, style, and vibe.",
     start_url: "/",
     display: "standalone",
-    background_color: "#17191b",
-    theme_color: "#17191b",
+    background_color: "#0f120d",
+    theme_color: "#0f120d",
     icons: [
       // Both `any` and `maskable` so launchers that crop to a circle use the
       // full-bleed art, and contexts that don't still render it.

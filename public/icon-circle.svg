@@ -1,6 +1,5 @@
-<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="vibe-shelf app icon (full-bleed, maskable): a vinyl record">
-  <!-- full-bleed dark-green background; launcher masks this to a circle -->
-  <rect width="512" height="512" fill="#1D231C"/>
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="vibe-shelf circle icon (transparent corners): a vinyl record">
+  <circle cx="256" cy="256" r="252" fill="#1D231C"/>
   <g fill="none" stroke-linecap="round">
     <circle cx="256" cy="256" r="170" stroke="#7D9B83" stroke-width="12"/>
     <circle cx="256" cy="256" r="136" stroke="#7D9B83" stroke-width="5.5" opacity="0.7"/>
