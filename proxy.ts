@@ -117,6 +117,6 @@ export const config = {
   // the manifest — those are served without the gate so the login screen and
   // installed-app shell can load.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.svg).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.svg|icon-192.png|icon-512.png|apple-touch-icon.png).*)",
   ],
 };

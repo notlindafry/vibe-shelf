@@ -17,14 +17,24 @@ const body = Inter({
 
 export const metadata: Metadata = {
   title: "vibe-shelf",
-  description: "A private, vibe-aware catalogue of a shared vinyl shelf.",
+  description: "Search a shared vinyl collection by artist, style, and vibe.",
   robots: { index: false, follow: false },
-  icons: { icon: "/icon.svg" },
   manifest: "/manifest.webmanifest",
+  icons: {
+    // Browser tab uses the SVG; iOS home screen uses the full-bleed PNG (iOS
+    // rounds the corners itself, so the file stays full-bleed, no transparency).
+    icon: "/icon.svg",
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "vibe-shelf",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#17181b",
+  themeColor: "#17191b",
   width: "device-width",
   initialScale: 1,
 };
