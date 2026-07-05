@@ -222,10 +222,18 @@ button {
 .searchbar input::placeholder {
   color: var(--text-faint);
 }
-/* The input takes the full first row; Search and Surprise me share the row
-   below, side by side, at every width. */
+/* The input takes the full first row; Search and Surprise me sit on the row
+   below. On desktop they stay natural width, left-aligned; on narrow screens
+   they stretch to share the row for bigger tap targets. */
 .searchbar .btn {
-  flex: 1 1 0;
+  flex: 0 1 auto;
+  min-width: 140px;
+}
+@media (max-width: 560px) {
+  .searchbar .btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 /* ---- Facets ---- */
