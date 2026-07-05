@@ -397,21 +397,46 @@ export async function searchRecords(
   return { results, spec, reranked: false };
 }
 
-/** Similar-by-style/genre: records sharing the most styles/genres with a seed. */
+/**
+ * Similar-by-style: records that share one or more STYLES with the seed, or are
+ * by the same artist. A shared broad Discogs GENRE (e.g. "Rock") does NOT qualify
+ * a record on its own, since that umbrella lumps indie rock in with doo-wop,
+ * metal, and punk. Genre overlap is used only as a minor tiebreak.
+ */
 export function similarRecords(seed: ShelfRecord, records: ShelfRecord[], limit = 20): SearchResult[] {
   const seedStyles = new Set(seed.styles.map(norm));
   const seedGenres = new Set(seed.genres.map(norm));
+  const seedArtist = norm(seed.artist);
 
   const scored: Scored[] = [];
   for (const record of records) {
     if (record.id === seed.id && record.owner === seed.owner) continue;
-    let score = 0;
-    for (const s of record.styles) if (seedStyles.has(norm(s))) score += 2;
-    for (const g of record.genres) if (seedGenres.has(norm(g))) score += 1;
-    if (norm(record.artist) === norm(seed.artist)) score += 1.5;
-    if (score > 0) scored.push({ record, score });
+
+    let sharedStyles = 0;
+    for (const s of record.styles) if (seedStyles.has(norm(s))) sharedStyles += 1;
+    const sameArtist = norm(record.artist) === seedArtist;
+
+    // Qualify only on a shared style or same artist. Broad genre alone is not enough.
+    if (sharedStyles === 0 && !sameArtist) continue;
+
+    let score = sharedStyles * 2;
+    if (sameArtist) score += 1.5;
+
+    let sharedGenres = 0;
+    for (const g of record.genres) if (seedGenres.has(norm(g))) sharedGenres += 1;
+    score += sharedGenres * 0.25; // minor tiebreak only
+
+    scored.push({ record, score });
   }
-  scored.sort((a, b) => b.score - a.score);
+
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const ay = a.record.year ?? 0;
+    const by = b.record.year ?? 0;
+    if (by !== ay) return by - ay;
+    return a.record.title.localeCompare(b.record.title);
+  });
+
   return scored.slice(0, limit).map(({ record }) => ({
     record,
     reason: sharedTags(record, seed),
@@ -422,6 +447,7 @@ function sharedTags(record: ShelfRecord, seed: ShelfRecord): string {
   const seedStyles = new Set(seed.styles.map(norm));
   const shared = record.styles.filter((s) => seedStyles.has(norm(s))).slice(0, 3);
   if (shared.length) return `Shares ${shared.join(" · ")}`;
+  if (norm(record.artist) === norm(seed.artist)) return "Same artist";
   const seedGenres = new Set(seed.genres.map(norm));
   const sharedG = record.genres.filter((g) => seedGenres.has(norm(g))).slice(0, 2);
   if (sharedG.length) return `Shares ${sharedG.join(" · ")}`;
