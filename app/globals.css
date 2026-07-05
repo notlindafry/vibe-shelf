@@ -205,7 +205,8 @@ button {
   margin-bottom: 18px;
 }
 .searchbar input[type="text"] {
-  flex: 1 1 220px;
+  /* full width on its own row; the buttons wrap to the row below */
+  flex: 1 1 100%;
   min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border-strong);
@@ -221,12 +222,10 @@ button {
 .searchbar input::placeholder {
   color: var(--text-faint);
 }
-/* On narrow screens the input fills row one and the buttons wrap to row two,
-   sharing it evenly instead of overflowing off-screen. */
-@media (max-width: 560px) {
-  .searchbar .btn {
-    flex: 1 1 0;
-  }
+/* The input takes the full first row; Search and Surprise me share the row
+   below, side by side, at every width. */
+.searchbar .btn {
+  flex: 1 1 0;
 }
 
 /* ---- Facets ---- */

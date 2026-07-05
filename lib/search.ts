@@ -179,14 +179,21 @@ function scoreRecords(spec: QuerySpec, records: ShelfRecord[]): Scored[] {
   const artists = spec.artists.map(norm).filter(Boolean);
   const keywords = spec.keywords.map(norm).filter(Boolean);
   const excludeStyles = new Set((spec.excludeStyles ?? []).map(norm));
-
-  // Style targets = explicit styles + styles expanded from moods.
-  const moodStyles = expandMoodsToStyles(spec.moods, records).map(norm);
   const explicitStyles = spec.styles.map(norm);
-  const targetStyles = new Set([...explicitStyles, ...moodStyles]);
 
+  // Moods combine with AND: each selected mood expands to its OWN set of styles,
+  // and a record must match at least one style from EVERY selected mood. Only
+  // moods that resolve to styles present in the collection are considered.
+  const moodStyleSets = Array.from(new Set(spec.moods.map(norm)))
+    .map((mood) => new Set(expandMoodsToStyles([mood], records).map(norm)))
+    .filter((set) => set.size > 0);
+  const hasMoodFilter = moodStyleSets.length > 0;
+
+  // Genre / style / artist / keyword are scored as an OR pool; moods are a
+  // separate hard AND filter, applied per-record below.
   const hasContentConstraint =
-    genres.size > 0 || targetStyles.size > 0 || artists.length > 0 || keywords.length > 0;
+    genres.size > 0 || explicitStyles.length > 0 || artists.length > 0 || keywords.length > 0;
+  const hasAnyConstraint = hasContentConstraint || hasMoodFilter;
 
   const scored: Scored[] = [];
 
@@ -198,7 +205,10 @@ function scoreRecords(spec: QuerySpec, records: ShelfRecord[]): Scored[] {
     // Hard filter: excluded styles.
     if (excludeStyles.size > 0 && recStyles.some((s) => excludeStyles.has(s))) continue;
 
-    if (!hasContentConstraint) {
+    // Hard filter: moods (AND) — the record must satisfy every selected mood.
+    if (hasMoodFilter && !moodStyleSets.every((set) => recStyles.some((s) => set.has(s)))) continue;
+
+    if (!hasAnyConstraint) {
       // Pure browse (e.g. owner-only or empty query): keep everything, flat score.
       scored.push({ record, score: 0 });
       continue;
@@ -209,12 +219,15 @@ function scoreRecords(spec: QuerySpec, records: ShelfRecord[]): Scored[] {
     const haystack = `${norm(record.artist)} ${norm(record.title)} ${norm(record.label)}`;
 
     for (const g of recGenres) if (genres.has(g)) score += 1.5;
-    for (const s of recStyles) {
-      if (explicitStyles.includes(s)) score += 2;
-      else if (targetStyles.has(s)) score += 1.5; // mood-derived
-    }
+    for (const s of recStyles) if (explicitStyles.includes(s)) score += 2;
     for (const a of artists) if (haystack.includes(a)) score += 3;
     for (const k of keywords) if (haystack.includes(k)) score += 1;
+    // The AND gate already passed; reward stronger mood matches for ordering.
+    if (hasMoodFilter) {
+      for (const set of moodStyleSets) {
+        for (const s of recStyles) if (set.has(s)) score += 1.5;
+      }
+    }
 
     if (score > 0) scored.push({ record, score });
   }
