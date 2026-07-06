@@ -22,7 +22,7 @@
 
 import { HttpError, fetchJson, sleep } from "@/lib/http";
 import { isRedisConfigured, redis } from "@/lib/redis";
-import type { Record as ShelfRecord } from "@/lib/types";
+import type { Record as ShelfRecord, Track } from "@/lib/types";
 
 const DISCOGS_API = "https://api.discogs.com";
 const PER_PAGE = 100;
@@ -84,6 +84,14 @@ interface DiscogsCollectionItem {
 interface DiscogsCollectionResponse {
   pagination?: { pages?: number; page?: number };
   releases?: DiscogsCollectionItem[];
+}
+interface DiscogsTrack {
+  position?: string;
+  title?: string;
+  type_?: string;
+}
+interface DiscogsRelease {
+  tracklist?: DiscogsTrack[];
 }
 
 // ---- In-process cache (dedupes concurrent loads to avoid a stampede) ----
@@ -245,6 +253,36 @@ async function fetchAccountCollection(account: AccountConfig): Promise<ShelfReco
   }
 
   return records;
+}
+
+/**
+ * Fetch one release's tracklist (feature 5). Uses the same rate-limit-aware fetch
+ * discipline as the collection paginate — bounded backoff on 429/5xx, then a pause
+ * when the remaining Discogs budget is low. Titles are trimmed on ingest (rule 4).
+ * Authenticated with the first configured account's token (release data is public;
+ * auth just raises the rate limit).
+ */
+export async function fetchReleaseTracks(id: string): Promise<Track[]> {
+  const accounts = getAccounts();
+  if (accounts.length === 0) {
+    throw new Error("No Discogs accounts configured (DISCOGS_USERNAME / DISCOGS_TOKEN)");
+  }
+  const headers = {
+    Authorization: `Discogs token=${accounts[0].token}`,
+    "User-Agent": userAgent(),
+    Accept: "application/json",
+  };
+  const url = `${DISCOGS_API}/releases/${encodeURIComponent(id)}`;
+  const { data, headers: resHeaders } = await fetchWithBackoff<DiscogsRelease>(url, headers);
+  await respectRateLimit(resHeaders);
+
+  const tracks: Track[] = [];
+  for (const t of data.tracklist ?? []) {
+    const title = clean(t?.title, 200);
+    if (!title) continue; // skip section headings and blank rows
+    tracks.push({ position: clean(t?.position, 12), title });
+  }
+  return tracks;
 }
 
 /** Fetch with a bounded retry/backoff on 429 and transient 5xx responses. */

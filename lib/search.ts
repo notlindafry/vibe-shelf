@@ -20,6 +20,7 @@ import type { QuerySpec, Record as ShelfRecord, SearchResult } from "@/lib/types
 import { MOODS, presentGenres, presentOwners, presentStyles } from "@/lib/vocab";
 import { getMoodIndex, type MoodIndex } from "@/lib/moods";
 import { isRedisConfigured, redis } from "@/lib/redis";
+import { songSearch } from "@/lib/tracks";
 
 const MAX_QUERY_LEN = 300;
 const CANDIDATE_LIMIT = 60; // records handed to the rerank step
@@ -394,6 +395,41 @@ export interface SearchOutcome {
   results: SearchResult[];
   spec: QuerySpec;
   reranked: boolean;
+  /** True when results came from the deterministic song-title match (feature 5). */
+  songMatch?: boolean;
+}
+
+// ---- Song lookup routing (feature 5) ----
+
+/**
+ * Detect an explicit "which record is <song> on" style query and pull out the
+ * song term; null for ordinary vibe/genre queries so they stay on the normal
+ * pipeline. Deliberately conservative — the user opts in via phrasing (a
+ * song:/track: prefix, quotes, or a "which record … is X on" question) so plain
+ * keyword searches are never hijacked.
+ */
+function extractSongTerm(query: string): string | null {
+  const q = query.trim();
+  const tidy = (s: string): string | null => {
+    const cleaned = s.replace(/["“”']/g, "").replace(/\s+/g, " ").trim().slice(0, 200);
+    return cleaned || null;
+  };
+
+  let m = q.match(/^(?:song|track)\s*[:=]\s*(.+)$/i);
+  if (m) return tidy(m[1]);
+
+  m = q.match(/^["“'](.+)["”']$/);
+  if (m) return tidy(m[1]);
+
+  m = q.match(/\b(?:song|track)\s+(?:called|named|titled)\s+(.+)$/i);
+  if (m) return tidy(m[1]);
+
+  m = q.match(
+    /\b(?:which|what)\b.*?\b(?:record|album|lp|release|vinyl)s?\b.*?\b(?:is|are|has|have|contains?|features?|includes?|got|with)\b\s+(.+?)(?:\s+on\b.*)?[?.!]*$/i,
+  );
+  if (m) return tidy(m[1]);
+
+  return null;
 }
 
 export async function searchRecords(
@@ -405,6 +441,25 @@ export async function searchRecords(
   const hasFacets = Boolean(
     options.owners?.length || options.genres?.length || options.styles?.length || options.moods?.length,
   );
+
+  // Song lookup (feature 5): an explicit "which record is X on" query matches
+  // hydrated track titles deterministically — exact and free — before the vibe
+  // pipeline. Falls through to normal search when nothing matches (e.g. not yet
+  // hydrated), so the box still does something.
+  if (query && !hasFacets) {
+    const songTerm = extractSongTerm(query);
+    if (songTerm) {
+      const songResults = await songSearch(songTerm, records);
+      if (songResults.length > 0) {
+        return {
+          results: songResults,
+          spec: { ...emptySpec(), keywords: [songTerm] },
+          reranked: false,
+          songMatch: true,
+        };
+      }
+    }
+  }
 
   // Understand.
   let spec: QuerySpec;

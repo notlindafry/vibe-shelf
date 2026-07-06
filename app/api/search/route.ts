@@ -48,6 +48,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       spec: outcome.spec,
       reranked: outcome.reranked,
       partial,
+      songMatch: outcome.songMatch,
     };
     return NextResponse.json(payload);
   } catch (err) {

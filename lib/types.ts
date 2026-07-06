@@ -46,6 +46,13 @@ export interface Bookmark {
   addedAt: number;
 }
 
+/** One entry of a release tracklist (feature 5). */
+export interface Track {
+  /** Discogs track position, e.g. "A1" (may be empty). */
+  position: string;
+  title: string;
+}
+
 /** A record plus how many times it has been logged as played (feature 4). */
 export interface PlayedRecord {
   record: Record;
@@ -94,6 +101,8 @@ export interface SearchResponse {
   reranked: boolean;
   /** True when some accounts failed to load but others succeeded. */
   partial: boolean;
+  /** True when these results came from a deterministic song-title match (feature 5). */
+  songMatch?: boolean;
 }
 
 /** Response shape for /api/meta. */

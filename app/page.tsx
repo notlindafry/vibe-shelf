@@ -45,6 +45,7 @@ export default function CataloguePage() {
 
   const [results, setResults] = useState<SearchResult[]>([]);
   const [reranked, setReranked] = useState(false);
+  const [songMatch, setSongMatch] = useState(false);
   const [partial, setPartial] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +109,7 @@ export default function CataloguePage() {
       const res = await search({ query: trimmedQuery, owners, genres, styles, moods });
       setResults(res.results);
       setReranked(res.reranked);
+      setSongMatch(res.songMatch ?? false);
       setPartial(res.partial);
       setView({ kind: "search" });
     } catch (err) {
@@ -146,6 +148,7 @@ export default function CataloguePage() {
       const { result } = await surpriseMe({ owners, genres, styles, moods });
       setResults(result ? [result] : []);
       setReranked(false);
+      setSongMatch(false);
       setView({ kind: "surprise" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not pick a record");
@@ -161,6 +164,7 @@ export default function CataloguePage() {
       const { results: similar } = await moreLikeThis(record.id, record.owner);
       setResults(similar);
       setReranked(false);
+      setSongMatch(false);
       setView({ kind: "similar", seed: record });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -338,6 +342,7 @@ export default function CataloguePage() {
               {results.length} record{results.length === 1 ? "" : "s"}
             </span>
             {reranked && <span className="badge ai">AI-ranked</span>}
+            {songMatch && <span className="badge">song match</span>}
           </>
         )}
         {!loading && !error && view.kind === "surprise" && <span>Your pick</span>}
@@ -385,6 +390,10 @@ export default function CataloguePage() {
               Search by genre, style, artist, or label — or pick a facet above.
             </p>
           )}
+          <p className="hint">
+            Looking for a song? Ask <code>which record is “Africa” on?</code> or{" "}
+            <code>song: blue in green</code>.
+          </p>
         </div>
       )}
 
