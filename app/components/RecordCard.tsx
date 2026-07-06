@@ -6,6 +6,8 @@ interface RecordCardProps {
   record: ShelfRecord;
   reason?: string;
   onSimilar?: (record: ShelfRecord) => void;
+  isBookmarked?: boolean;
+  onToggleBookmark?: (record: ShelfRecord) => void;
 }
 
 /**
@@ -13,7 +15,13 @@ interface RecordCardProps {
  * owner tag, and an optional one-line reason. Cover art is not fetched from
  * Discogs in this build (see README) — a styled vinyl placeholder stands in.
  */
-export default function RecordCard({ record, reason, onSimilar }: RecordCardProps) {
+export default function RecordCard({
+  record,
+  reason,
+  onSimilar,
+  isBookmarked,
+  onToggleBookmark,
+}: RecordCardProps) {
   const metaParts = [record.format, record.year ? String(record.year) : "", record.label]
     .map((p) => p.trim())
     .filter(Boolean);
@@ -56,6 +64,17 @@ export default function RecordCard({ record, reason, onSimilar }: RecordCardProp
           {onSimilar && (
             <button type="button" className="linkish" onClick={() => onSimilar(record)}>
               More like this
+            </button>
+          )}
+          {onToggleBookmark && (
+            <button
+              type="button"
+              className="linkish"
+              aria-pressed={isBookmarked}
+              aria-label={isBookmarked ? "Remove from saved" : "Save record"}
+              onClick={() => onToggleBookmark(record)}
+            >
+              {isBookmarked ? "★ Saved" : "☆ Save"}
             </button>
           )}
         </div>

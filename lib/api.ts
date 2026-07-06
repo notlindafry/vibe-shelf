@@ -3,7 +3,13 @@
  * return typed payloads and normalise error handling.
  */
 
-import type { MetaResponse, SearchResponse, SearchResult } from "@/lib/types";
+import type {
+  Bookmark,
+  MetaResponse,
+  Record as ShelfRecord,
+  SearchResponse,
+  SearchResult,
+} from "@/lib/types";
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -57,6 +63,21 @@ export function moreLikeThis(
   owner: string,
 ): Promise<{ seed: SearchResult["record"]; results: SearchResult[] }> {
   return postJson("/api/similar", { id, owner });
+}
+
+export async function fetchBookmarks(): Promise<Bookmark[]> {
+  const res = await fetch("/api/bookmarks", { method: "GET" });
+  if (!res.ok) throw new Error(await extractError(res));
+  return ((await res.json()) as { bookmarks: Bookmark[] }).bookmarks;
+}
+
+export async function addBookmark(record: ShelfRecord): Promise<void> {
+  await postJson("/api/bookmarks", { record });
+}
+
+export async function removeBookmark(id: string): Promise<void> {
+  const res = await fetch(`/api/bookmarks?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(await extractError(res));
 }
 
 export async function login(password: string): Promise<{ ok: true; role: string }> {
