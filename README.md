@@ -81,12 +81,13 @@ Wired from the current Discogs API docs/forum:
   filter. The explicit owner facet is always available regardless.
 - **Owner filter shape:** a multi-select facet matching the genre/style/mood
   facets.
-- **Cover art — not shown in this build.** Discogs cover images require auth and
-  rate-limit aggressively when rendered in bulk. The spec makes cover art optional;
-  skipping it keeps the CSP tight (`img-src 'self' data:`) and avoids image-rate-
-  limit fragility. A styled vinyl placeholder stands in. To add cover art later,
-  render `basic_information.cover_image` and add the Discogs image CDN
-  (`i.discogs.com`) to `img-src` in `proxy.ts`.
+- **Cover art.** Each card shows the release's Discogs cover
+  (`basic_information.cover_image`, falling back to `thumb`), cropped into the
+  vinyl disc; releases with no artwork keep the styled placeholder. Image URLs are
+  validated to Discogs' own CDN on ingest, and `img-src` in `proxy.ts` allows only
+  `https://i.discogs.com`/`https://img.discogs.com` (plus `'self' data:`), so the
+  CSP stays tight. The browser loads covers directly from Discogs' CDN (lazily),
+  so this adds no Discogs API calls.
 
 ## Security notes
 

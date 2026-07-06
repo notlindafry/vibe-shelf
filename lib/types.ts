@@ -24,6 +24,8 @@ export interface Record {
   owner: string;
   /** Public Discogs release page, when derivable. */
   discogsUrl?: string;
+  /** Discogs-hosted cover art URL, when the release has one. */
+  coverImage?: string;
 }
 
 /** A saved record: the catalogue fields the card renders, plus when it was saved. */
@@ -38,6 +40,8 @@ export interface Bookmark {
   styles: string[];
   owner: string;
   discogsUrl?: string;
+  /** Discogs-hosted cover art URL, when the release has one. */
+  coverImage?: string;
   /** Epoch milliseconds when the bookmark was added. */
   addedAt: number;
 }

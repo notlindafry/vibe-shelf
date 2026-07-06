@@ -47,6 +47,12 @@ function safeDiscogsUrl(v: unknown): string | undefined {
   return v.slice(0, 300);
 }
 
+function safeCoverImage(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  if (!/^https:\/\/(i|img)\.discogs\.com\//.test(v)) return undefined; // Discogs image CDN only
+  return v.slice(0, 500);
+}
+
 /** Rebuild a clean snapshot from validated fields only; null if invalid. */
 function toBookmark(input: unknown): Bookmark | null {
   if (typeof input !== "object" || input === null) return null;
@@ -63,6 +69,7 @@ function toBookmark(input: unknown): Bookmark | null {
     styles: parseStringArray(r.styles),
     owner: boundedString(r.owner, 100),
     discogsUrl: safeDiscogsUrl(r.discogsUrl),
+    coverImage: safeCoverImage(r.coverImage),
     addedAt: Date.now(),
   };
 }

@@ -33,7 +33,11 @@ export default function RecordCard({
 
   return (
     <article className="card">
-      <div className="cover" aria-hidden />
+      <div className={`cover${record.coverImage ? " has-art" : ""}`} aria-hidden>
+        {record.coverImage && (
+          <img src={record.coverImage} alt="" loading="lazy" width={58} height={58} />
+        )}
+      </div>
       <div className="card-body">
         <div className="card-artist">{record.artist}</div>
         <div className="card-title">{record.title}</div>

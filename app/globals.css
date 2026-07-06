@@ -453,6 +453,21 @@ button {
   border-radius: 50%;
   background: var(--bg);
 }
+/* Real cover art: fill the disc and drop the vinyl gradient + center hole. */
+.cover.has-art {
+  background: none;
+  overflow: hidden;
+}
+.cover.has-art::after {
+  content: none;
+}
+.cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
 
 .card-body {
   min-width: 0;

@@ -39,8 +39,6 @@ function isPublicPath(pathname: string): boolean {
 function buildCsp(): string {
   const isDev = process.env.NODE_ENV !== "production";
   // Next's dev tooling additionally needs 'unsafe-eval'; production does not.
-  // Cover art is not fetched from Discogs in this build, so img-src stays
-  // 'self' data:.
   const scriptSrc = isDev
     ? `'self' 'unsafe-inline' 'unsafe-eval'`
     : `'self' 'unsafe-inline'`;
@@ -50,7 +48,8 @@ function buildCsp(): string {
     `base-uri 'self'`,
     `script-src ${scriptSrc}`,
     `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' data:`,
+    // Cover art is served from Discogs' own image CDN; everything else is local.
+    `img-src 'self' data: https://i.discogs.com https://img.discogs.com`,
     `font-src 'self' data:`,
     // All data (Discogs, Anthropic) is fetched server-side; the browser only
     // talks to this origin.

@@ -61,6 +61,8 @@ interface DiscogsBasicInformation {
   formats?: DiscogsFormat[];
   genres?: string[];
   styles?: string[];
+  cover_image?: string;
+  thumb?: string;
 }
 interface DiscogsCollectionItem {
   id?: number;
@@ -135,6 +137,17 @@ function cleanList(values: unknown, maxItems = 25): string[] {
   return out;
 }
 
+/**
+ * Only accept https image URLs on Discogs' own CDN, matching the `img-src`
+ * allowlist in proxy.ts. Anything else (spacer/placeholder hosts, other origins)
+ * becomes undefined so the card falls back to the styled placeholder.
+ */
+function discogsImageUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  if (!/^https:\/\/(i|img)\.discogs\.com\//.test(value)) return undefined;
+  return value.length > 500 ? value.slice(0, 500) : value;
+}
+
 function mapRelease(item: DiscogsCollectionItem, owner: string): ShelfRecord | null {
   const info = item.basic_information;
   const releaseId = info?.id ?? item.id;
@@ -157,6 +170,9 @@ function mapRelease(item: DiscogsCollectionItem, owner: string): ShelfRecord | n
 
   const year = typeof info.year === "number" && info.year > 0 ? info.year : null;
 
+  // Prefer the larger cover_image; fall back to the thumb. Both are Discogs-hosted.
+  const coverImage = discogsImageUrl(info.cover_image) ?? discogsImageUrl(info.thumb);
+
   return {
     id: String(releaseId),
     artist: artist || "Unknown Artist",
@@ -168,6 +184,7 @@ function mapRelease(item: DiscogsCollectionItem, owner: string): ShelfRecord | n
     styles: cleanList(info.styles),
     owner,
     discogsUrl: `https://www.discogs.com/release/${releaseId}`,
+    coverImage,
   };
 }
 
