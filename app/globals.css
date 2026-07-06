@@ -527,7 +527,24 @@ button {
 .card-actions {
   margin-top: 10px;
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
+}
+.played-count {
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+
+/* Section heading inside the Saved / Forgotten views. */
+.section-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-strong);
+  margin: 22px 0 10px;
+}
+.section-title:first-child {
+  margin-top: 0;
 }
 
 /* ---- Empty / hint states ---- */

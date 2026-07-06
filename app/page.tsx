@@ -6,21 +6,32 @@ import RecordCard from "@/app/components/RecordCard";
 import {
   addBookmark,
   fetchBookmarks,
+  fetchForgotten,
   fetchMeta,
+  fetchPlays,
   logout,
+  logPlay,
   moreLikeThis,
   removeBookmark,
   search,
   surpriseMe,
 } from "@/lib/api";
-import type { Bookmark, MetaResponse, Record as ShelfRecord, SearchResult } from "@/lib/types";
+import type {
+  Bookmark,
+  ForgottenPick,
+  MetaResponse,
+  PlayedRecord,
+  Record as ShelfRecord,
+  SearchResult,
+} from "@/lib/types";
 
 type View =
   | { kind: "idle" }
   | { kind: "search" }
   | { kind: "surprise" }
   | { kind: "similar"; seed: ShelfRecord }
-  | { kind: "saved" };
+  | { kind: "saved" }
+  | { kind: "forgotten" };
 
 export default function CataloguePage() {
   const [meta, setMeta] = useState<MetaResponse | null>(null);
@@ -41,6 +52,11 @@ export default function CataloguePage() {
 
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [savedList, setSavedList] = useState<Bookmark[]>([]);
+
+  const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
+  const [mostPlayed, setMostPlayed] = useState<PlayedRecord[]>([]);
+  const [forgotten, setForgotten] = useState<ForgottenPick | null>(null);
+  const [forgottenLoading, setForgottenLoading] = useState(false);
 
   // Bump this to force a search (e.g. on Enter / Search click) without needing a
   // dependency on the query string itself.
@@ -66,6 +82,21 @@ export default function CataloguePage() {
   useEffect(() => {
     void loadBookmarks();
   }, [loadBookmarks]);
+
+  // Load play counts on mount so cards can show them. Ignore errors quietly
+  // (feature off / not permitted).
+  const loadPlays = useCallback(async () => {
+    try {
+      const { counts, mostPlayed: top } = await fetchPlays();
+      setPlayCounts(counts);
+      setMostPlayed(top);
+    } catch {
+      // leave state empty
+    }
+  }, []);
+  useEffect(() => {
+    void loadPlays();
+  }, [loadPlays]);
 
   const hasFacets = owners.length + genres.length + styles.length + moods.length > 0;
   const trimmedQuery = query.trim();
@@ -160,6 +191,30 @@ export default function CataloguePage() {
     }
   }
 
+  async function onLogPlay(record: ShelfRecord) {
+    // Optimistic: bump the local count, then reconcile with the server's count.
+    setPlayCounts((prev) => ({ ...prev, [record.id]: (prev[record.id] ?? 0) + 1 }));
+    try {
+      const count = await logPlay(record.id);
+      setPlayCounts((prev) => ({ ...prev, [record.id]: count }));
+    } catch {
+      await loadPlays(); // reconcile with server truth on failure
+    }
+  }
+
+  async function openForgotten() {
+    setView({ kind: "forgotten" });
+    setForgottenLoading(true);
+    void loadPlays();
+    try {
+      setForgotten(await fetchForgotten());
+    } catch {
+      setForgotten(null);
+    } finally {
+      setForgottenLoading(false);
+    }
+  }
+
   async function onLogout() {
     await logout();
     window.location.assign("/login");
@@ -176,6 +231,9 @@ export default function CataloguePage() {
   }
 
   const aiEnabled = meta?.features.aiSearch ?? false;
+  // Only owners may log plays (writes are owner-gated server-side); guests read only.
+  const canWrite = Boolean(meta) && !meta?.features.guest;
+  const logPlayHandler = canWrite ? onLogPlay : undefined;
 
   return (
     <main className="page">
@@ -193,6 +251,9 @@ export default function CataloguePage() {
             </span>
           )}
           {meta?.features.guest && <span className="badge">guest</span>}
+          <button type="button" className="btn-ghost" onClick={openForgotten}>
+            Forgotten
+          </button>
           <button
             type="button"
             className="btn-ghost"
@@ -300,6 +361,16 @@ export default function CataloguePage() {
             </button>
           </>
         )}
+        {view.kind === "forgotten" && (
+          <>
+            <span>Forgotten shelf — today&rsquo;s pick</span>
+            {!forgottenLoading && (
+              <button type="button" className="linkish" onClick={() => void openForgotten()}>
+                Refresh
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {!loading && view.kind === "idle" && !error && (
@@ -320,6 +391,7 @@ export default function CataloguePage() {
       {!loading &&
         view.kind !== "idle" &&
         view.kind !== "saved" &&
+        view.kind !== "forgotten" &&
         results.length === 0 &&
         !error && (
           <div className="empty">No records matched. Try loosening your filters.</div>
@@ -334,12 +406,59 @@ export default function CataloguePage() {
               record={b}
               isBookmarked={bookmarkedIds.has(b.id)}
               onToggleBookmark={onToggleBookmark}
+              playCount={playCounts[b.id]}
+              onLogPlay={logPlayHandler}
             />
           ))}
         </div>
       )}
 
-      {view.kind !== "saved" && results.length > 0 && (
+      {view.kind === "forgotten" && (
+        <div>
+          {forgottenLoading && (
+            <div className="empty">Finding a record you&rsquo;ve overlooked…</div>
+          )}
+          {!forgottenLoading && forgotten && (
+            <>
+              <p className="hint">
+                {forgotten.blurb ||
+                  "You haven't logged a play for this one — maybe it's time to spin it."}
+              </p>
+              <div className="grid">
+                <RecordCard
+                  record={forgotten.record}
+                  isBookmarked={bookmarkedIds.has(forgotten.record.id)}
+                  onToggleBookmark={onToggleBookmark}
+                  playCount={playCounts[forgotten.record.id]}
+                  onLogPlay={logPlayHandler}
+                />
+              </div>
+            </>
+          )}
+          {!forgottenLoading && !forgotten && (
+            <div className="empty">No records to surface yet.</div>
+          )}
+          {mostPlayed.length > 0 && (
+            <>
+              <div className="section-title">Most played</div>
+              <div className="grid">
+                {mostPlayed.map((p) => (
+                  <RecordCard
+                    key={`played:${p.record.id}`}
+                    record={p.record}
+                    isBookmarked={bookmarkedIds.has(p.record.id)}
+                    onToggleBookmark={onToggleBookmark}
+                    playCount={p.count}
+                    onLogPlay={logPlayHandler}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {view.kind !== "saved" && view.kind !== "forgotten" && results.length > 0 && (
         <div className="grid">
           {results.map((r, i) => (
             <RecordCard
@@ -349,6 +468,8 @@ export default function CataloguePage() {
               onSimilar={meta?.features.similar ? onSimilar : undefined}
               isBookmarked={bookmarkedIds.has(r.record.id)}
               onToggleBookmark={onToggleBookmark}
+              playCount={playCounts[r.record.id]}
+              onLogPlay={logPlayHandler}
             />
           ))}
         </div>

@@ -25,3 +25,26 @@ export async function getRole(request: NextRequest): Promise<Role | null> {
   const claims = await verifySessionToken(token);
   return claims?.role ?? null;
 }
+
+/** True for a stringified numeric Discogs release id (rule 4). */
+export function isReleaseId(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9]{1,15}$/.test(value);
+}
+
+/**
+ * Same-origin check for state-changing requests — CSRF defense-in-depth alongside
+ * the SameSite=Lax session cookie (which already withholds itself from cross-site
+ * POSTs). Compares the Origin (or Referer) host to the request Host. A write with
+ * neither header is treated as cross-site and rejected.
+ */
+export function isSameOrigin(request: NextRequest): boolean {
+  const host = request.headers.get("host");
+  if (!host) return false;
+  const candidate = request.headers.get("origin") ?? request.headers.get("referer");
+  if (!candidate) return false;
+  try {
+    return new URL(candidate).host === host;
+  } catch {
+    return false;
+  }
+}

@@ -46,6 +46,21 @@ export interface Bookmark {
   addedAt: number;
 }
 
+/** A record plus how many times it has been logged as played (feature 4). */
+export interface PlayedRecord {
+  record: Record;
+  count: number;
+}
+
+/** The daily Forgotten Shelf pick: a neglected record and a short nudge. */
+export interface ForgottenPick {
+  record: Record;
+  /** One-line Claude blurb, or empty string when no key / generation failed. */
+  blurb: string;
+  /** Epoch milliseconds when this pick was generated. */
+  generatedAt: number;
+}
+
 /**
  * Structured search intent. The understand step maps a sentence onto this; the
  * prefilter scores records against it; the rerank step orders the survivors.

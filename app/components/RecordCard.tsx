@@ -8,6 +8,8 @@ interface RecordCardProps {
   onSimilar?: (record: ShelfRecord) => void;
   isBookmarked?: boolean;
   onToggleBookmark?: (record: ShelfRecord) => void;
+  playCount?: number;
+  onLogPlay?: (record: ShelfRecord) => void;
 }
 
 /**
@@ -21,6 +23,8 @@ export default function RecordCard({
   onSimilar,
   isBookmarked,
   onToggleBookmark,
+  playCount,
+  onLogPlay,
 }: RecordCardProps) {
   const metaParts = [record.format, record.year ? String(record.year) : "", record.label]
     .map((p) => p.trim())
@@ -81,6 +85,18 @@ export default function RecordCard({
               {isBookmarked ? "★ Saved" : "☆ Save"}
             </button>
           )}
+          {onLogPlay ? (
+            <button
+              type="button"
+              className="linkish"
+              aria-label="Log a play"
+              onClick={() => onLogPlay(record)}
+            >
+              {playCount ? `▶ Played ${playCount}×` : "▶ Log play"}
+            </button>
+          ) : playCount ? (
+            <span className="played-count">▶ {playCount}×</span>
+          ) : null}
         </div>
       </div>
     </article>

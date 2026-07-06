@@ -5,7 +5,9 @@
 
 import type {
   Bookmark,
+  ForgottenPick,
   MetaResponse,
+  PlayedRecord,
   Record as ShelfRecord,
   SearchResponse,
   SearchResult,
@@ -78,6 +80,26 @@ export async function addBookmark(record: ShelfRecord): Promise<void> {
 export async function removeBookmark(id: string): Promise<void> {
   const res = await fetch(`/api/bookmarks?id=${encodeURIComponent(id)}`, { method: "DELETE" });
   if (!res.ok) throw new Error(await extractError(res));
+}
+
+export async function logPlay(id: string): Promise<number> {
+  const data = await postJson<{ ok: true; count: number }>("/api/play", { id });
+  return data.count;
+}
+
+export async function fetchPlays(): Promise<{
+  counts: Record<string, number>;
+  mostPlayed: PlayedRecord[];
+}> {
+  const res = await fetch("/api/play", { method: "GET" });
+  if (!res.ok) throw new Error(await extractError(res));
+  return (await res.json()) as { counts: Record<string, number>; mostPlayed: PlayedRecord[] };
+}
+
+export async function fetchForgotten(): Promise<ForgottenPick | null> {
+  const res = await fetch("/api/forgotten", { method: "GET" });
+  if (!res.ok) throw new Error(await extractError(res));
+  return ((await res.json()) as { pick: ForgottenPick | null }).pick;
 }
 
 export async function login(password: string): Promise<{ ok: true; role: string }> {
