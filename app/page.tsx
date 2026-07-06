@@ -206,12 +206,12 @@ export default function CataloguePage() {
     }
   }
 
-  async function openForgotten() {
+  async function openForgotten(force = false) {
     setView({ kind: "forgotten" });
     setForgottenLoading(true);
     void loadPlays();
     try {
-      setForgotten(await fetchForgotten());
+      setForgotten(await fetchForgotten(force));
     } catch {
       setForgotten(null);
     } finally {
@@ -255,7 +255,7 @@ export default function CataloguePage() {
             </span>
           )}
           {meta?.features.guest && <span className="badge">guest</span>}
-          <button type="button" className="btn-ghost" onClick={openForgotten}>
+          <button type="button" className="btn-ghost" onClick={() => openForgotten()}>
             Forgotten
           </button>
           <button
@@ -370,8 +370,8 @@ export default function CataloguePage() {
           <>
             <span>Forgotten shelf — today&rsquo;s pick</span>
             {!forgottenLoading && (
-              <button type="button" className="linkish" onClick={() => void openForgotten()}>
-                Refresh
+              <button type="button" className="linkish" onClick={() => void openForgotten(true)}>
+                Another
               </button>
             )}
           </>

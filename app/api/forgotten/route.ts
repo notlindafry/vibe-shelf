@@ -26,7 +26,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const pick = await getForgottenPick();
+    // ?refresh=1 (the Refresh button) rolls a fresh pick instead of the cached one.
+    const force = request.nextUrl.searchParams.get("refresh") === "1";
+    const pick = await getForgottenPick({ force });
     return NextResponse.json({ pick });
   } catch (err) {
     console.error("[forgotten GET] failed:", err instanceof Error ? err.message : err);

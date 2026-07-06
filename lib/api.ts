@@ -96,8 +96,8 @@ export async function fetchPlays(): Promise<{
   return (await res.json()) as { counts: Record<string, number>; mostPlayed: PlayedRecord[] };
 }
 
-export async function fetchForgotten(): Promise<ForgottenPick | null> {
-  const res = await fetch("/api/forgotten", { method: "GET" });
+export async function fetchForgotten(force = false): Promise<ForgottenPick | null> {
+  const res = await fetch(`/api/forgotten${force ? "?refresh=1" : ""}`, { method: "GET" });
   if (!res.ok) throw new Error(await extractError(res));
   return ((await res.json()) as { pick: ForgottenPick | null }).pick;
 }

@@ -82,20 +82,17 @@ async function generateBlurb(record: ShelfRecord): Promise<string> {
   return raw.replace(/\s+/g, " ").trim().slice(0, 300);
 }
 
-/** The pick for today, from the daily cache when present. Null if the shelf is empty. */
-export async function getForgottenPick(): Promise<ForgottenPick | null> {
+/**
+ * The pick for today. Served from the daily cache when present and still valid;
+ * `force` (the Refresh action) skips the cache and rolls a fresh pick. A cached
+ * pick that has since been logged as played is discarded and re-selected, so a
+ * record you just marked played stops being "forgotten". Null if the shelf is
+ * empty.
+ */
+export async function getForgottenPick(options: { force?: boolean } = {}): Promise<ForgottenPick | null> {
   const key = todayKey();
 
-  if (isRedisConfigured()) {
-    try {
-      const cached = await redis().get<ForgottenPick>(key);
-      if (cached && cached.record && typeof cached.record.id === "string") return cached;
-    } catch (err) {
-      console.error("[forgotten] cache read failed:", err instanceof Error ? err.message : err);
-    }
-  }
-
-  const { records } = await getCollection();
+  // Play recency drives both cache validation and selection, so read it first.
   let lastPlayed = new Map<string, number>();
   try {
     lastPlayed = await lastPlayedTimes();
@@ -106,6 +103,20 @@ export async function getForgottenPick(): Promise<ForgottenPick | null> {
     );
   }
 
+  if (!options.force && isRedisConfigured()) {
+    try {
+      const cached = await redis().get<ForgottenPick>(key);
+      if (cached && cached.record && typeof cached.record.id === "string") {
+        // Keep the cached pick only if it hasn't been played since it was chosen.
+        const playedAt = lastPlayed.get(cached.record.id) ?? 0;
+        if (playedAt < cached.generatedAt) return cached;
+      }
+    } catch (err) {
+      console.error("[forgotten] cache read failed:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  const { records } = await getCollection();
   const record = selectNeglected(dedupeById(records), lastPlayed);
   if (!record) return null;
 
