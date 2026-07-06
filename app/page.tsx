@@ -3,14 +3,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import MultiSelect from "@/app/components/MultiSelect";
 import RecordCard from "@/app/components/RecordCard";
-import { fetchMeta, logout, moreLikeThis, search, surpriseMe } from "@/lib/api";
-import type { MetaResponse, Record as ShelfRecord, SearchResult } from "@/lib/types";
+import {
+  addBookmark,
+  fetchBookmarks,
+  fetchMeta,
+  logout,
+  moreLikeThis,
+  removeBookmark,
+  search,
+  surpriseMe,
+} from "@/lib/api";
+import type { Bookmark, MetaResponse, Record as ShelfRecord, SearchResult } from "@/lib/types";
 
 type View =
   | { kind: "idle" }
   | { kind: "search" }
   | { kind: "surprise" }
-  | { kind: "similar"; seed: ShelfRecord };
+  | { kind: "similar"; seed: ShelfRecord }
+  | { kind: "saved" };
 
 export default function CataloguePage() {
   const [meta, setMeta] = useState<MetaResponse | null>(null);
@@ -29,6 +39,9 @@ export default function CataloguePage() {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>({ kind: "idle" });
 
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+  const [savedList, setSavedList] = useState<Bookmark[]>([]);
+
   // Bump this to force a search (e.g. on Enter / Search click) without needing a
   // dependency on the query string itself.
   const [runToken, setRunToken] = useState(0);
@@ -39,6 +52,20 @@ export default function CataloguePage() {
       .then(setMeta)
       .catch((err) => setMetaError(err instanceof Error ? err.message : "Failed to load catalogue"));
   }, []);
+
+  // Load the shared list on mount. Owner-gated server-side; ignore 403/503 quietly.
+  const loadBookmarks = useCallback(async () => {
+    try {
+      const list = await fetchBookmarks();
+      setSavedList(list);
+      setBookmarkedIds(new Set(list.map((b) => b.id)));
+    } catch {
+      // Feature off or not permitted; leave state empty.
+    }
+  }, []);
+  useEffect(() => {
+    void loadBookmarks();
+  }, [loadBookmarks]);
 
   const hasFacets = owners.length + genres.length + styles.length + moods.length > 0;
   const trimmedQuery = query.trim();
@@ -112,6 +139,27 @@ export default function CataloguePage() {
     }
   }
 
+  async function onToggleBookmark(record: ShelfRecord) {
+    const has = bookmarkedIds.has(record.id);
+    setBookmarkedIds((prev) => {
+      const next = new Set(prev);
+      if (has) next.delete(record.id);
+      else next.add(record.id);
+      return next;
+    });
+    setSavedList((prev) =>
+      has
+        ? prev.filter((b) => b.id !== record.id)
+        : [{ ...record, addedAt: Date.now() }, ...prev],
+    );
+    try {
+      if (has) await removeBookmark(record.id);
+      else await addBookmark(record);
+    } catch {
+      await loadBookmarks(); // reconcile with server truth on failure
+    }
+  }
+
   async function onLogout() {
     await logout();
     window.location.assign("/login");
@@ -145,6 +193,16 @@ export default function CataloguePage() {
             </span>
           )}
           {meta?.features.guest && <span className="badge">guest</span>}
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={async () => {
+              await loadBookmarks();
+              setView({ kind: "saved" });
+            }}
+          >
+            Saved{bookmarkedIds.size ? ` (${bookmarkedIds.size})` : ""}
+          </button>
           <button type="button" className="btn-ghost" onClick={onLogout}>
             Log out
           </button>
@@ -232,6 +290,16 @@ export default function CataloguePage() {
             Back
           </button>
         )}
+        {!loading && !error && view.kind === "saved" && (
+          <>
+            <span>
+              {savedList.length} saved record{savedList.length === 1 ? "" : "s"}
+            </span>
+            <button type="button" className="linkish" onClick={() => void loadBookmarks()}>
+              Refresh
+            </button>
+          </>
+        )}
       </div>
 
       {!loading && view.kind === "idle" && !error && (
@@ -249,11 +317,29 @@ export default function CataloguePage() {
         </div>
       )}
 
-      {!loading && view.kind !== "idle" && results.length === 0 && !error && (
-        <div className="empty">No records matched. Try loosening your filters.</div>
+      {!loading &&
+        view.kind !== "idle" &&
+        view.kind !== "saved" &&
+        results.length === 0 &&
+        !error && (
+          <div className="empty">No records matched. Try loosening your filters.</div>
+        )}
+
+      {view.kind === "saved" && (
+        <div className="grid">
+          {savedList.length === 0 && <div className="empty">No saved records yet.</div>}
+          {savedList.map((b) => (
+            <RecordCard
+              key={`saved:${b.id}`}
+              record={b}
+              isBookmarked={bookmarkedIds.has(b.id)}
+              onToggleBookmark={onToggleBookmark}
+            />
+          ))}
+        </div>
       )}
 
-      {results.length > 0 && (
+      {view.kind !== "saved" && results.length > 0 && (
         <div className="grid">
           {results.map((r, i) => (
             <RecordCard
@@ -261,6 +347,8 @@ export default function CataloguePage() {
               record={r.record}
               reason={r.reason}
               onSimilar={meta?.features.similar ? onSimilar : undefined}
+              isBookmarked={bookmarkedIds.has(r.record.id)}
+              onToggleBookmark={onToggleBookmark}
             />
           ))}
         </div>

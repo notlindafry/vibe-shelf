@@ -26,6 +26,22 @@ export interface Record {
   discogsUrl?: string;
 }
 
+/** A saved record: the catalogue fields the card renders, plus when it was saved. */
+export interface Bookmark {
+  id: string;
+  artist: string;
+  title: string;
+  year: number | null;
+  label: string;
+  format: string;
+  genres: string[];
+  styles: string[];
+  owner: string;
+  discogsUrl?: string;
+  /** Epoch milliseconds when the bookmark was added. */
+  addedAt: number;
+}
+
 /**
  * Structured search intent. The understand step maps a sentence onto this; the
  * prefilter scores records against it; the rerank step orders the survivors.
