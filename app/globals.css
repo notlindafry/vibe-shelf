@@ -137,6 +137,9 @@ button {
   font-size: 13px;
   color: var(--text-faint);
 }
+.topbar-right .count {
+  white-space: nowrap;
+}
 
 /* ---- Buttons (flat, rounded, no shadow) ---- */
 
@@ -173,6 +176,7 @@ button {
   padding: 6px 10px;
   border-radius: var(--radius-sm);
   font-size: 13px;
+  white-space: nowrap;
   box-shadow: none;
 }
 .btn-ghost:hover {
@@ -243,7 +247,7 @@ button {
   gap: 10px;
   flex-wrap: wrap;
   align-items: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .facet {
@@ -384,8 +388,8 @@ button {
   flex-wrap: wrap;
   color: var(--text-muted);
   font-size: 13px;
-  margin-bottom: 16px;
-  min-height: 20px;
+  margin-bottom: 12px;
+  min-height: 14px;
 }
 .statusline strong {
   color: var(--text-strong);
