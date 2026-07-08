@@ -323,11 +323,6 @@ button {
   align-items: center;
   justify-content: center;
 }
-.facet-button .chev {
-  color: var(--text-faint);
-  font-size: 10px;
-}
-
 .facet-panel {
   position: absolute;
   z-index: 20;

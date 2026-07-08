@@ -72,9 +72,6 @@ export default function MultiSelect({
       >
         <span>{label}</span>
         {selected.length > 0 && <span className="count">{selected.length}</span>}
-        <span className="chev" aria-hidden>
-          ▾
-        </span>
       </button>
 
       {open && (
