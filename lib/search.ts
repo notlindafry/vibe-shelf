@@ -19,10 +19,14 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { QuerySpec, Record as ShelfRecord, SearchResult } from "@/lib/types";
 import { MOODS, presentGenres, presentOwners, presentStyles } from "@/lib/vocab";
 import { getMoodIndex, type MoodIndex } from "@/lib/moods";
+import { normArtist } from "@/lib/lastfm";
 import { isRedisConfigured, redis } from "@/lib/redis";
 import { songSearch } from "@/lib/tracks";
 
 const MAX_QUERY_LEN = 300;
+// Weight of a Last.fm sonic match: a strong match (~1.0) scores ~2.5, edging just
+// past a single shared Discogs style (2). A starting point, like VIBE_TO_STYLE.
+const SIMILAR_WEIGHT = 2.5;
 const CANDIDATE_LIMIT = 60; // records handed to the rerank step
 const RESULT_LIMIT = 30; // results returned to the client
 const STYLE_HINT_LIMIT = 400; // cap on styles sent to the understand step
@@ -512,12 +516,22 @@ export async function searchRecords(
 }
 
 /**
- * Similar-by-style: records that share one or more STYLES with the seed, or are
- * by the same artist. A shared broad Discogs GENRE (e.g. "Rock") does NOT qualify
- * a record on its own, since that umbrella lumps indie rock in with doo-wop,
- * metal, and punk. Genre overlap is used only as a minor tiebreak.
+ * Similar-by-style, optionally widened by Last.fm sonic similarity. A candidate
+ * qualifies when it shares a STYLE with the seed, is by the same artist, OR its
+ * artist is in `similarArtists` — the seed's Last.fm similar-artist map (normalized
+ * artist name → 0..1 match). This connects records that sound alike even when
+ * their Discogs style tags diverge. A shared broad GENRE (e.g. "Rock") still does
+ * NOT qualify a record on its own; genre overlap is only a minor tiebreak.
+ *
+ * When `similarArtists` is empty (no key / not hydrated / read failed), the Last.fm
+ * terms are inert and behavior degrades to exactly the pure style/artist path.
  */
-export function similarRecords(seed: ShelfRecord, records: ShelfRecord[], limit = 20): SearchResult[] {
+export function similarRecords(
+  seed: ShelfRecord,
+  records: ShelfRecord[],
+  similarArtists: Map<string, number> = new Map(),
+  limit = 20,
+): SearchResult[] {
   const seedStyles = new Set(seed.styles.map(norm));
   const seedGenres = new Set(seed.genres.map(norm));
   const seedArtist = norm(seed.artist);
@@ -529,12 +543,14 @@ export function similarRecords(seed: ShelfRecord, records: ShelfRecord[], limit 
     let sharedStyles = 0;
     for (const s of record.styles) if (seedStyles.has(norm(s))) sharedStyles += 1;
     const sameArtist = norm(record.artist) === seedArtist;
+    const match = similarArtists.get(normArtist(record.artist)) ?? 0;
 
-    // Qualify only on a shared style or same artist. Broad genre alone is not enough.
-    if (sharedStyles === 0 && !sameArtist) continue;
+    // Qualify on a shared style, the same artist, or a Last.fm sonic match.
+    if (sharedStyles === 0 && !sameArtist && match <= 0) continue;
 
     let score = sharedStyles * 2;
     if (sameArtist) score += 1.5;
+    if (match > 0) score += SIMILAR_WEIGHT * match;
 
     let sharedGenres = 0;
     for (const g of record.genres) if (seedGenres.has(norm(g))) sharedGenres += 1;
@@ -553,15 +569,26 @@ export function similarRecords(seed: ShelfRecord, records: ShelfRecord[], limit 
 
   return scored.slice(0, limit).map(({ record }) => ({
     record,
-    reason: sharedTags(record, seed),
+    reason: similarReason(record, seed, similarArtists),
   }));
 }
 
-function sharedTags(record: ShelfRecord, seed: ShelfRecord): string {
+/**
+ * Most informative reason first: shared styles, then same artist, then a Last.fm
+ * match (worded by strength), then a shared genre, then the owner. With an empty
+ * map the Last.fm branch never fires, so this matches the old style-only reason.
+ */
+function similarReason(record: ShelfRecord, seed: ShelfRecord, similarArtists: Map<string, number>): string {
   const seedStyles = new Set(seed.styles.map(norm));
   const shared = record.styles.filter((s) => seedStyles.has(norm(s))).slice(0, 3);
   if (shared.length) return `Shares ${shared.join(" · ")}`;
   if (norm(record.artist) === norm(seed.artist)) return "Same artist";
+  const match = similarArtists.get(normArtist(record.artist)) ?? 0;
+  if (match > 0) {
+    return match >= 0.5
+      ? `Similar sound to ${seed.artist}`
+      : `In the same listening world as ${seed.artist}`;
+  }
   const seedGenres = new Set(seed.genres.map(norm));
   const sharedG = record.genres.filter((g) => seedGenres.has(norm(g))).slice(0, 2);
   if (sharedG.length) return `Shares ${sharedG.join(" · ")}`;
