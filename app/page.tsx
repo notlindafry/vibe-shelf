@@ -48,6 +48,7 @@ type ResultsSnapshot = {
   reranked: boolean;
   songMatch: boolean;
   partial: boolean;
+  usedLastfm: boolean;
   view: View;
 };
 
@@ -64,6 +65,8 @@ export default function CataloguePage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [reranked, setReranked] = useState(false);
   const [songMatch, setSongMatch] = useState(false);
+  // True when Last.fm similar-artist data widened the current "more like this" view.
+  const [usedLastfm, setUsedLastfm] = useState(false);
   const [partial, setPartial] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,15 +210,16 @@ export default function CataloguePage() {
   async function onSimilar(record: ShelfRecord) {
     // Remember what's on screen now so "Back" can restore it. Captured before
     // the await so it reflects the view we're leaving, not the one we land on.
-    const from: ResultsSnapshot = { results, reranked, songMatch, partial, view };
+    const from: ResultsSnapshot = { results, reranked, songMatch, partial, usedLastfm, view };
     setLoading(true);
     setError(null);
     try {
-      const { results: similar } = await moreLikeThis(record.id, record.owner);
+      const { results: similar, usedLastfm: lf } = await moreLikeThis(record.id, record.owner);
       setHistory((h) => [...h, from]);
       setResults(similar);
       setReranked(false);
       setSongMatch(false);
+      setUsedLastfm(Boolean(lf));
       setView({ kind: "similar", seed: record });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -236,6 +240,7 @@ export default function CataloguePage() {
     setReranked(prev.reranked);
     setSongMatch(prev.songMatch);
     setPartial(prev.partial);
+    setUsedLastfm(prev.usedLastfm);
     setView(prev.view);
     setError(null);
     setHistory((h) => h.slice(0, -1));
@@ -637,6 +642,16 @@ export default function CataloguePage() {
             />
           ))}
         </div>
+      )}
+
+      {view.kind === "similar" && usedLastfm && results.length > 0 && (
+        <p className="attribution">
+          Similar-artist data supplied by{" "}
+          <a href="https://www.last.fm" target="_blank" rel="noopener noreferrer">
+            Last.fm
+          </a>
+          .
+        </p>
       )}
     </main>
   );

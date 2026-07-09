@@ -65,7 +65,7 @@ export function surpriseMe(
 export function moreLikeThis(
   id: string,
   owner: string,
-): Promise<{ seed: SearchResult["record"]; results: SearchResult[] }> {
+): Promise<{ seed: SearchResult["record"]; results: SearchResult[]; usedLastfm?: boolean }> {
   return postJson("/api/similar", { id, owner });
 }
 

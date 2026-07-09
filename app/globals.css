@@ -599,6 +599,15 @@ button {
   color: var(--text-faint);
   font-size: 13px;
 }
+.attribution {
+  margin-top: 18px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.attribution a {
+  color: inherit;
+  text-decoration: underline;
+}
 .hint code {
   color: var(--accent);
   background: var(--surface);
