@@ -5,6 +5,7 @@
     { "path": "/api/cron/refresh-collection", "schedule": "0 6 * * *" },
     { "path": "/api/cron/hydrate-tracks", "schedule": "30 6 * * *" },
     { "path": "/api/cron/hydrate-lastfm", "schedule": "45 6 * * *" },
+    { "path": "/api/cron/hydrate-descriptors", "schedule": "50 6 * * *" },
     { "path": "/api/cron/refresh-insights", "schedule": "0 7 * * *" }
   ]
 }

@@ -22,6 +22,7 @@ import { getMoodIndex, type MoodIndex } from "@/lib/moods";
 import { normArtist } from "@/lib/lastfm";
 import { isRedisConfigured, redis } from "@/lib/redis";
 import { songSearch } from "@/lib/tracks";
+import { getDescriptorIndex } from "@/lib/descriptors";
 
 const MAX_QUERY_LEN = 300;
 // Weight of a Last.fm sonic match: a strong match (~1.0) scores ~2.5, edging just
@@ -30,7 +31,12 @@ const SIMILAR_WEIGHT = 2.5;
 const CANDIDATE_LIMIT = 60; // records handed to the rerank step
 const RESULT_LIMIT = 30; // results returned to the client
 const STYLE_HINT_LIMIT = 400; // cap on styles sent to the understand step
-const QSPEC_VERSION = 1; // bump when the understand-step prompt changes
+// Weight of a query keyword found in a record's descriptor. Just below a literal
+// title keyword (which adds 1) so a real title hit still outranks a purely
+// thematic one at equal strength, while a descriptor-only match still pushes the
+// score above zero so the record survives to the candidate set.
+const DESCRIPTOR_WEIGHT = 0.9;
+const QSPEC_VERSION = 2; // bump when the understand-step prompt changes
 const QSPEC_TTL_SECONDS = 3 * 24 * 60 * 60; // ~3 days; version+model in the key protect correctness
 
 function model(): string {
@@ -90,6 +96,7 @@ function buildUnderstandSystem(records: ShelfRecord[]): string {
     "- Only use genre/style/owner/mood values from the provided lists. Do not invent tags.",
     "- If the request names a collection owner, put the matching OWNER label in `owners`.",
     "- Put artist names in `artists` and any remaining free-text terms (album titles, words) in `keywords`.",
+    "- Keep salient topic/subject words in `keywords` even when they ALSO map to a mood, genre, or style, and even when they map to none. Subject matter is searchable via per-record descriptors, so these words matter. E.g. 'mad at the government' -> moods: [\"angry\"], keywords: [\"government\"]; 'songs about heartbreak' -> keywords: [\"heartbreak\"]; 'music for a rainy drive' -> keywords: [\"rain\"].",
     "- Use `excludeStyles` for explicit negations (e.g. 'but no metal').",
     "- Leave arrays empty when nothing applies. Do not guess wildly; an empty spec is fine for a vague query.",
     "",
@@ -225,7 +232,12 @@ interface Scored {
   score: number;
 }
 
-function scoreRecords(spec: QuerySpec, records: ShelfRecord[], moodIndex?: MoodIndex | null): Scored[] {
+function scoreRecords(
+  spec: QuerySpec,
+  records: ShelfRecord[],
+  moodIndex?: MoodIndex | null,
+  descriptors?: Map<string, string> | null,
+): Scored[] {
   const genres = new Set(spec.genres.map(norm));
   const owners = new Set(spec.owners.map(norm));
   const artists = spec.artists.map(norm).filter(Boolean);
@@ -274,6 +286,13 @@ function scoreRecords(spec: QuerySpec, records: ShelfRecord[], moodIndex?: MoodI
     for (const s of recStyles) if (explicitStyles.includes(s)) score += 2;
     for (const a of artists) if (haystack.includes(a)) score += 3;
     for (const k of keywords) if (haystack.includes(k)) score += 1;
+    // Subject-matter match: a query keyword found in the record's descriptor.
+    // This is what lets a record qualify on theme alone (e.g. Propagandhi for
+    // "mad at the government"), surviving the prefilter to reach the rerank step.
+    if (descriptors) {
+      const descriptor = descriptors.get(record.id)?.toLowerCase();
+      if (descriptor) for (const k of keywords) if (descriptor.includes(k)) score += DESCRIPTOR_WEIGHT;
+    }
     // The AND gate already passed; give mood-matched records a positive score so
     // mood-only browses surface (and keep them above pure genre noise).
     if (hasMoodFilter) score += selectedMoods.length * 1.5;
@@ -304,22 +323,28 @@ async function rerankWithClaude(
   client: Anthropic,
   query: string,
   candidates: ShelfRecord[],
+  descriptors?: Map<string, string> | null,
 ): Promise<SearchResult[] | null> {
   // Give the model a compact view — never the whole collection.
-  const compact = candidates.map((r) => ({
-    id: r.id,
-    artist: r.artist,
-    title: r.title,
-    year: r.year,
-    genres: r.genres,
-    styles: r.styles,
-    owner: r.owner,
-  }));
+  const compact = candidates.map((r) => {
+    const base = {
+      id: r.id,
+      artist: r.artist,
+      title: r.title,
+      year: r.year,
+      genres: r.genres,
+      styles: r.styles,
+      owner: r.owner,
+    };
+    const descriptor = descriptors?.get(r.id);
+    return descriptor ? { ...base, descriptor } : base;
+  });
 
   const system = [
     "You are re-ranking vinyl records for a natural-language request.",
     "From the CANDIDATES, return the best matches most-relevant first.",
     "For each, write a short one-line reason (max ~16 words) tying it to the request — mention genre/style/mood/owner where relevant.",
+    "Some candidates include a `descriptor`: a short vibe/subject summary of the release. Use it to judge fit and to write the one-line reason (name the actual theme when it matches), but treat it as a search aid, not an authoritative fact — do not quote it as a claim about the artist.",
     "Only include records that genuinely fit. Do not invent ids. Return at most 30.",
     "",
     'Respond with ONLY a JSON object (no prose, no markdown): {"results": [{"id": "<id>", "reason": "<one line>"}]}.',
@@ -487,10 +512,22 @@ export async function searchRecords(
     return { results: [], spec, reranked: false };
   }
 
+  // Load the per-release descriptor index so the prefilter can match on subject
+  // matter and the rerank step can read it. Fails open to an empty map — search
+  // still runs on tags and titles — and logs server-side on a read error.
+  let descriptors: Map<string, string> = new Map();
+  if (query) {
+    try {
+      descriptors = await getDescriptorIndex(records);
+    } catch (err) {
+      console.error("[search] descriptor read failed:", err instanceof Error ? err.message : err);
+    }
+  }
+
   // Prefilter + score. When moods are in play, classify (or reuse cached) moods
   // for the collection so the AND filter uses Claude's per-record tags.
   const moodIndex = spec.moods.length > 0 ? await getMoodIndex(records) : null;
-  const scored = scoreRecords(spec, records, moodIndex);
+  const scored = scoreRecords(spec, records, moodIndex, descriptors);
   const candidates = scored.slice(0, CANDIDATE_LIMIT).map((s) => s.record);
 
   if (candidates.length === 0) {
@@ -500,7 +537,7 @@ export async function searchRecords(
   // Rerank (only worthwhile when there's a natural-language query to interpret).
   if (client && query) {
     try {
-      const reranked = await rerankWithClaude(client, query, candidates);
+      const reranked = await rerankWithClaude(client, query, candidates, descriptors);
       if (reranked && reranked.length > 0) {
         return { results: reranked, spec, reranked: true };
       }
