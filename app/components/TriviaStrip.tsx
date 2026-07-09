@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchInsights } from "@/lib/api";
 import type { Insight, InsightAction } from "@/lib/types";
 
-const AUTO_ADVANCE_MS = 4500;
+const AUTO_ADVANCE_MS = 10000;
 const SWIPE_THRESHOLD_PX = 40;
 const ACTION_TYPES = new Set<InsightAction["type"]>(["genre", "style", "owner", "search"]);
 
