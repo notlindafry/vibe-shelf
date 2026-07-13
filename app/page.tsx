@@ -351,6 +351,11 @@ export default function CataloguePage() {
         <div>
           <div className="wordmark">
             vibe<span className="dash">-</span>shelf
+            {view.kind === "wishlist" && (
+              <span className="wordmark-crumb">
+                {" / "}maybe<span className="dash">-</span>vibes
+              </span>
+            )}
           </div>
         </div>
         <div className="topbar-right">
@@ -370,7 +375,7 @@ export default function CataloguePage() {
               maybe<span className="dash">-</span>vibes
             </button>
             <button type="button" className="btn-ghost" onClick={() => openForgotten()}>
-              Forgotten
+              forgotten
             </button>
             <button
               type="button"
@@ -381,13 +386,15 @@ export default function CataloguePage() {
                 setHistory([]);
               }}
             >
-              Saved{bookmarkedIds.size ? ` (${bookmarkedIds.size})` : ""}
+              saved{bookmarkedIds.size ? ` (${bookmarkedIds.size})` : ""}
             </button>
           </div>
         </div>
       </div>
       <p className="tagline">
-        Search a shared vinyl shelf by vibe, genre, style, or owner.
+        {view.kind === "wishlist"
+          ? "A shared shortlist: albums to hear all the way through on Spotify before buying them on vinyl."
+          : "Search a shared vinyl shelf by vibe, genre, style, or owner."}
       </p>
 
       <form className="searchpanel" onSubmit={onSubmit}>
@@ -525,14 +532,9 @@ export default function CataloguePage() {
           </>
         )}
         {view.kind === "wishlist" && (
-          <>
-            <span className="maybe-label">
-              maybe<span className="dash">-</span>vibes
-            </span>
-            <button type="button" className="linkish" onClick={clearAll}>
-              Back
-            </button>
-          </>
+          <button type="button" className="linkish" onClick={clearAll}>
+            Back
+          </button>
         )}
       </div>
 

@@ -123,6 +123,11 @@ button {
 .wordmark .dash {
   color: var(--accent);
 }
+/* Breadcrumb suffix on the wordmark, e.g. "vibe-shelf / maybe-vibes" in a view. */
+.wordmark-crumb {
+  color: var(--text-muted);
+  font-weight: 500;
+}
 
 .tagline {
   color: var(--text-muted);
