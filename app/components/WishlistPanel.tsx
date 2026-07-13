@@ -180,11 +180,19 @@ export default function WishlistPanel({
                 const existing = byId.get(album.id);
                 return (
                   <article className="card" key={`result:${album.id}`}>
-                    <div className={`cover${album.coverImage ? " has-art" : ""}`} aria-hidden>
-                      {album.coverImage && (
-                        <img src={album.coverImage} alt="" loading="lazy" width={58} height={58} />
-                      )}
-                    </div>
+                    <a
+                      className="cover-link"
+                      href={album.spotifyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Open ${album.name} on Spotify`}
+                    >
+                      <span className={`cover${album.coverImage ? " has-art" : ""}`} aria-hidden>
+                        {album.coverImage && (
+                          <img src={album.coverImage} alt="" loading="lazy" width={58} height={58} />
+                        )}
+                      </span>
+                    </a>
                     <div className="card-body">
                       <div className="card-artist">{album.name}</div>
                       {album.artist && <div className="card-title">{album.artist}</div>}

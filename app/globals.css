@@ -1039,6 +1039,36 @@ button {
   gap: 10px;
 }
 
+/* Clickable album cover in search results: the disc links out to Spotify. Takes
+   over the flex-item slot from .cover, keeps it circular, and adds a hover lift
+   and a visible keyboard focus ring. */
+.cover-link {
+  flex: 0 0 auto;
+  display: block;
+  line-height: 0;
+  border-radius: 50%;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.cover-link > .cover {
+  display: block;
+}
+.cover-link:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+.cover-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cover-link {
+    transition: none;
+  }
+  .cover-link:hover {
+    transform: none;
+  }
+}
+
 /* Status filter (All | Vetted | Unvetted) */
 .wishlist-filter {
   display: flex;
