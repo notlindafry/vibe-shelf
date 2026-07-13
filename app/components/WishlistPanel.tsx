@@ -148,20 +148,22 @@ export default function WishlistPanel({
   return (
     <section className="wishlist" aria-label="maybe-vibes wishlist">
       {canWrite && (
-        <form className="wishlist-search" onSubmit={onSearch}>
-          <input
-            className="searchpanel-input"
-            type="text"
-            value={query}
-            maxLength={200}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search Spotify for an album to shortlist…"
-            aria-label="Search Spotify albums"
-          />
-          <button type="submit" className="btn btn-primary" disabled={searching}>
-            {searching ? "Searching…" : "Search"}
-          </button>
-        </form>
+        <div className="searchpanel wishlist-searchpanel">
+          <form className="wishlist-search" onSubmit={onSearch}>
+            <input
+              className="searchpanel-input"
+              type="text"
+              value={query}
+              maxLength={200}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search Spotify for an album to shortlist…"
+              aria-label="Search Spotify albums"
+            />
+            <button type="submit" className="btn btn-primary" disabled={searching}>
+              {searching ? "Searching…" : "Search"}
+            </button>
+          </form>
+        </div>
       )}
 
       {notice && <p className="wishlist-notice">{notice}</p>}

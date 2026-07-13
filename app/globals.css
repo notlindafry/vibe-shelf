@@ -128,6 +128,18 @@ button {
   color: var(--text-muted);
   font-weight: 500;
 }
+/* "vibe-shelf" in the wordmark is a home link. Keep it visually identical to the
+   title text (no button chrome) — just clickable. */
+.wordmark-home {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
 
 .tagline {
   color: var(--text-muted);
@@ -995,6 +1007,12 @@ button {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+/* The Spotify search sits in the same surface "green box" as the vibe-shelf
+   catalogue search (.searchpanel); drop that box's default bottom margin so the
+   wishlist's own flex gap controls the spacing. */
+.wishlist-searchpanel {
+  margin-bottom: 0;
 }
 .wishlist-search {
   display: flex;

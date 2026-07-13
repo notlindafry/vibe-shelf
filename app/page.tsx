@@ -350,7 +350,9 @@ export default function CataloguePage() {
       <div className="topbar">
         <div>
           <div className="wordmark">
-            vibe<span className="dash">-</span>shelf
+            <button type="button" className="wordmark-home" onClick={clearAll}>
+              vibe<span className="dash">-</span>shelf
+            </button>
             {view.kind === "wishlist" && (
               <span className="wordmark-crumb">
                 {" / "}maybe<span className="dash">-</span>vibes
@@ -397,6 +399,10 @@ export default function CataloguePage() {
           : "Search a shared vinyl shelf by vibe, genre, style, or owner."}
       </p>
 
+      {/* Catalogue search + facets belong to the vibe-shelf collection only; the
+          maybe-vibes view has its own Spotify search instead. */}
+      {view.kind !== "wishlist" && (
+        <>
       <form className="searchpanel" onSubmit={onSubmit}>
         <input
           className="searchpanel-input"
@@ -471,6 +477,8 @@ export default function CataloguePage() {
           if (kind === "mood") setMoods((s) => s.filter((v) => v !== value));
         }}
       />
+        </>
+      )}
 
       <div className="statusline">
         {loading && (
