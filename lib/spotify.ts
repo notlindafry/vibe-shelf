@@ -21,7 +21,9 @@ const SEARCH_URL = "https://api.spotify.com/v1/search";
 // Without a market and no user token, Spotify treats content as unavailable, so
 // results can come back empty; always pass one.
 const SEARCH_MARKET = "US";
-const SEARCH_LIMIT = 20;
+// Spotify capped the search `limit` at 10 (down from 50) in its February 2026 Web
+// API change; sending anything higher now returns HTTP 400. Keep at the max of 10.
+const SEARCH_LIMIT = 10;
 // Refresh a minute before the real expiry so a token can't lapse mid-request.
 const TOKEN_EXPIRY_BUFFER_MS = 60_000;
 
