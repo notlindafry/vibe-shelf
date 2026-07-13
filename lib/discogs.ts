@@ -20,6 +20,7 @@
  * upstream error bodies are never surfaced to the client (rule 8).
  */
 
+import { after } from "next/server";
 import { HttpError, fetchJson, sleep } from "@/lib/http";
 import { isRedisConfigured, redis } from "@/lib/redis";
 import type { Record as ShelfRecord, Track } from "@/lib/types";
@@ -285,7 +286,23 @@ export async function fetchReleaseTracks(id: string): Promise<Track[]> {
   return tracks;
 }
 
-/** Fetch with a bounded retry/backoff on 429 and transient 5xx responses. */
+/**
+ * A timeout (our AbortController firing) or a transient network blip surfaces as
+ * an AbortError / generic fetch failure rather than an HttpError. These callers
+ * never pass an external abort signal, so any abort here is our own timeout and is
+ * safe to retry — a single slow Discogs page shouldn't fail the whole load.
+ */
+function isTransientNetworkError(err: unknown): boolean {
+  if (err instanceof HttpError) return false;
+  if (!(err instanceof Error)) return false;
+  return (
+    err.name === "AbortError" ||
+    err.name === "TimeoutError" ||
+    /abort|timed?\s?out|fetch failed|network|ECONNRESET|ETIMEDOUT/i.test(err.message)
+  );
+}
+
+/** Fetch with a bounded retry/backoff on 429, transient 5xx, and timeouts. */
 async function fetchWithBackoff<T>(
   url: string,
   headers: Record<string, string>,
@@ -301,7 +318,8 @@ async function fetchWithBackoff<T>(
       return await fetchJson<T>(url, { headers, timeoutMs: 20_000 });
     } catch (err) {
       const retryable =
-        err instanceof HttpError && (err.status === 429 || (err.status >= 500 && err.status < 600));
+        (err instanceof HttpError && (err.status === 429 || (err.status >= 500 && err.status < 600))) ||
+        isTransientNetworkError(err);
       if (!retryable || attempt >= maxAttempts) throw err;
 
       const hintSeconds = err instanceof HttpError ? err.retryAfterSeconds : undefined;
@@ -410,7 +428,7 @@ export async function getCollection(): Promise<{ records: ShelfRecord[]; partial
 /** Kick a non-blocking refresh, deduped against any in-flight load. */
 function triggerBackgroundRefresh(): void {
   if (inFlight) return;
-  inFlight = refreshCollection()
+  const refresh = refreshCollection()
     .catch((err) => {
       console.error(
         "[discogs] background refresh failed:",
@@ -422,6 +440,18 @@ function triggerBackgroundRefresh(): void {
     .finally(() => {
       inFlight = null;
     });
+  inFlight = refresh;
+
+  // On serverless, work started after the response is sent is frozen and its
+  // in-flight fetches are aborted ("This operation was aborted"), so a bare
+  // fire-and-forget refresh never completes. after() keeps the function alive
+  // until the refresh settles. Outside a request context after() throws, so fall
+  // back to the running promise (best effort; the daily cron still refreshes).
+  try {
+    after(refresh);
+  } catch {
+    // no request scope — refresh is already running best-effort
+  }
 }
 
 /**

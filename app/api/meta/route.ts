@@ -8,6 +8,10 @@ import type { MetaResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// The response returns fast, but a stale-cache read schedules a background
+// collection refresh via after(); give that a two-account paginate's worth of
+// budget so it isn't frozen mid-fetch. Billed on actual time, not the ceiling.
+export const maxDuration = 60;
 
 /**
  * GET /api/meta — facets (genres, styles, owners, moods) actually present in the
