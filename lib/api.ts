@@ -13,6 +13,9 @@ import type {
   SearchResponse,
   SearchResult,
   ShelfResponse,
+  SpotifyAlbum,
+  WishlistEntry,
+  WishlistStatus,
 } from "@/lib/types";
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -120,6 +123,54 @@ export async function fetchShelf(limit = 8, all = false): Promise<ShelfResponse>
   const res = await fetch(`/api/shelf${query}`, { method: "GET" });
   if (!res.ok) throw new Error(await extractError(res));
   return (await res.json()) as ShelfResponse;
+}
+
+// ---- maybe-vibes wishlist (Spotify search + shared list) ----
+
+/** Search Spotify albums for the add flow. */
+export async function spotifySearch(query: string): Promise<SpotifyAlbum[]> {
+  const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}`, { method: "GET" });
+  if (!res.ok) throw new Error(await extractError(res));
+  return ((await res.json()) as { albums: SpotifyAlbum[] }).albums;
+}
+
+/** The full shared wishlist, newest first. */
+export async function fetchWishlist(): Promise<WishlistEntry[]> {
+  const res = await fetch("/api/wishlist", { method: "GET" });
+  if (!res.ok) throw new Error(await extractError(res));
+  return ((await res.json()) as { entries: WishlistEntry[] }).entries;
+}
+
+/**
+ * Add an album with a chosen status. Resolves with the stored entry and whether it
+ * was already present (`duplicate`), so the caller can point to the existing one
+ * instead of creating a copy.
+ */
+export async function addWishlist(
+  album: SpotifyAlbum,
+  status: WishlistStatus,
+): Promise<{ duplicate: boolean; entry: WishlistEntry }> {
+  const data = await postJson<{ ok: true; duplicate?: boolean; entry: WishlistEntry }>(
+    "/api/wishlist",
+    { ...album, status },
+  );
+  return { duplicate: Boolean(data.duplicate), entry: data.entry };
+}
+
+/** Change an entry's status (vetted <-> unvetted). */
+export async function setWishlistStatus(id: string, status: WishlistStatus): Promise<void> {
+  const res = await fetch("/api/wishlist", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, status }),
+  });
+  if (!res.ok) throw new Error(await extractError(res));
+}
+
+/** Remove an entry from the wishlist. */
+export async function removeWishlist(id: string): Promise<void> {
+  const res = await fetch(`/api/wishlist?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(await extractError(res));
 }
 
 export async function login(password: string): Promise<{ ok: true; role: string }> {

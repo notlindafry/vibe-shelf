@@ -120,6 +120,8 @@ export interface MetaResponse {
     random: boolean;
     /** True when the logged-in session is a read-only guest. */
     guest: boolean;
+    /** True when wishlist storage (Redis) is configured, so maybe-vibes persists. */
+    wishlist: boolean;
   };
 }
 
@@ -167,4 +169,54 @@ export interface ShelfResponse {
   total: number;
   /** True when some accounts failed to load but others succeeded. */
   partial: boolean;
+}
+
+// ---- maybe-vibes wishlist (Spotify-sourced shared shortlist) ----
+
+/** Wishlist entry status: shortlisted vs listened-through-and-confirmed. */
+export type WishlistStatus = "unvetted" | "vetted";
+
+/**
+ * One entry on the shared maybe-vibes wishlist: a validated snapshot of a Spotify
+ * album, its status, and when it was added. There is intentionally no per-user
+ * attribution (no addedBy / vettedBy).
+ */
+export interface WishlistEntry {
+  /** Spotify album id (base-62). */
+  id: string;
+  name: string;
+  /** Album artists joined, e.g. "Artist A, Artist B". */
+  artist: string;
+  /** Release year (first 4 chars of release_date), or null. */
+  year: number | null;
+  /** Spotify-hosted cover art (i.scdn.co), when present. */
+  coverImage?: string;
+  /** The album's open.spotify.com/album/{id} link. */
+  spotifyUrl: string;
+  status: WishlistStatus;
+  /** Epoch milliseconds when the entry was added. */
+  addedAt: number;
+}
+
+/**
+ * An album from Spotify search, mapped to the fields the UI needs. Not persisted;
+ * the client posts these fields plus a chosen status to add an entry.
+ */
+export interface SpotifyAlbum {
+  id: string;
+  name: string;
+  artist: string;
+  year: number | null;
+  coverImage?: string;
+  spotifyUrl: string;
+}
+
+/** Response shape for /api/spotify/search. */
+export interface SpotifySearchResponse {
+  albums: SpotifyAlbum[];
+}
+
+/** Response shape for /api/wishlist (GET). */
+export interface WishlistResponse {
+  entries: WishlistEntry[];
 }

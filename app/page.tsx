@@ -5,6 +5,7 @@ import MultiSelect from "@/app/components/MultiSelect";
 import RecordCard from "@/app/components/RecordCard";
 import RecordTile from "@/app/components/RecordTile";
 import TriviaStrip from "@/app/components/TriviaStrip";
+import WishlistPanel from "@/app/components/WishlistPanel";
 import {
   addBookmark,
   fetchBookmarks,
@@ -36,7 +37,8 @@ type View =
   | { kind: "similar"; seed: ShelfRecord }
   | { kind: "saved" }
   | { kind: "forgotten" }
-  | { kind: "shelf" };
+  | { kind: "shelf" }
+  | { kind: "wishlist" };
 
 /**
  * A restorable snapshot of a results view. We push one before navigating into
@@ -357,6 +359,16 @@ export default function CataloguePage() {
           )}
           {meta?.features.guest && <span className="badge">guest</span>}
           <div className="topbar-actions">
+            <button
+              type="button"
+              className="btn-ghost maybe-label"
+              onClick={() => {
+                setView({ kind: "wishlist" });
+                setHistory([]);
+              }}
+            >
+              maybe<span className="dash">-</span>vibes
+            </button>
             <button type="button" className="btn-ghost" onClick={() => openForgotten()}>
               Forgotten
             </button>
@@ -512,6 +524,16 @@ export default function CataloguePage() {
             </button>
           </>
         )}
+        {view.kind === "wishlist" && (
+          <>
+            <span className="maybe-label">
+              maybe<span className="dash">-</span>vibes
+            </span>
+            <button type="button" className="linkish" onClick={clearAll}>
+              Back
+            </button>
+          </>
+        )}
       </div>
 
       {!loading && view.kind === "idle" && !error && (
@@ -558,11 +580,16 @@ export default function CataloguePage() {
         </>
       )}
 
+      {view.kind === "wishlist" && (
+        <WishlistPanel canWrite={canWrite} configured={meta?.features.wishlist ?? false} />
+      )}
+
       {!loading &&
         view.kind !== "idle" &&
         view.kind !== "saved" &&
         view.kind !== "forgotten" &&
         view.kind !== "shelf" &&
+        view.kind !== "wishlist" &&
         results.length === 0 &&
         !error && (
           <div className="empty">No records matched. Try loosening your filters.</div>
@@ -629,7 +656,11 @@ export default function CataloguePage() {
         </div>
       )}
 
-      {view.kind !== "saved" && view.kind !== "forgotten" && view.kind !== "shelf" && results.length > 0 && (
+      {view.kind !== "saved" &&
+        view.kind !== "forgotten" &&
+        view.kind !== "shelf" &&
+        view.kind !== "wishlist" &&
+        results.length > 0 && (
         <div className="grid">
           {results.map((r, i) => (
             <RecordCard

@@ -979,3 +979,106 @@ button {
   color: var(--accent);
   background: var(--accent-dim);
 }
+
+/* ---- maybe-vibes wishlist ---- */
+
+/* The accent hyphen in the "maybe-vibes" wordmark, wherever it appears. */
+.maybe-label .dash {
+  color: var(--accent);
+}
+.wishlist {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.wishlist-search {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.wishlist-search .searchpanel-input {
+  flex: 1;
+}
+.wishlist-notice {
+  margin: 0;
+  font-size: 13px;
+  color: var(--accent);
+}
+.wishlist-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Status filter (All | Vetted | Unvetted) */
+.wishlist-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.filter-chip {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.filter-chip:hover {
+  border-color: var(--accent);
+}
+.filter-chip.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+/* Status pill on each entry card */
+.status-pill {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  background: transparent;
+}
+.status-pill.vetted {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* The two one-tap add buttons on a search result */
+.add-actions .btn {
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+.add-actions .add-vetted {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.add-actions .add-vetted:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.on-list {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* Destructive link + inline remove confirmation */
+.linkish.danger {
+  color: var(--danger);
+}
+.confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}

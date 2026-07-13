@@ -50,8 +50,10 @@ function buildCsp(): string {
     `base-uri 'self'`,
     `script-src ${scriptSrc}`,
     `style-src 'self' 'unsafe-inline'`,
-    // Cover art is served from Discogs' own image CDN; everything else is local.
-    `img-src 'self' data: https://i.discogs.com https://img.discogs.com`,
+    // Cover art comes from Discogs' image CDN (collection) and Spotify's image CDN
+    // (maybe-vibes wishlist); everything else is local. Both are image hosts only —
+    // scripts/connections stay 'self'.
+    `img-src 'self' data: https://i.discogs.com https://img.discogs.com https://i.scdn.co`,
     `font-src 'self' data:`,
     // All data (Discogs, Anthropic) is fetched server-side; the browser only
     // talks to this origin.

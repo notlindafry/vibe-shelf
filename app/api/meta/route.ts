@@ -3,6 +3,7 @@ import { getCollection } from "@/lib/discogs";
 import { aiSearchEnabled } from "@/lib/search";
 import { MOODS, availableMoods, presentGenres, presentOwners, presentStyles } from "@/lib/vocab";
 import { getRole } from "@/lib/request";
+import { isWishlistConfigured } from "@/lib/wishlist";
 import type { MetaResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         similar: true,
         random: true,
         guest: role === "guest",
+        wishlist: isWishlistConfigured(),
       },
     };
     return NextResponse.json(payload);
